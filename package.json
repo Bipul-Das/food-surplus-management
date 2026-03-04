@@ -1,0 +1,18 @@
+{
+  "name": "food-surplus-management",
+  "version": "1.0.0",
+  "description": "Enterprise Food Surplus Management System",
+  "main": "index.js",
+  "scripts": {
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "**/*.{js,jsx,ts,tsx}": [
+      "node scripts/check-alerts.js"
+    ]
+  },
+  "devDependencies": {
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.2"
+  }
+}

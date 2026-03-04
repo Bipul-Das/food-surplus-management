@@ -1,0 +1,249 @@
+// server/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =======================
+// ENUMS & CONSTANTS
+// =======================
+
+enum Role {
+  LEAD_DEV
+  COORDINATOR
+  DONOR
+  RECEIVER
+  DELIVERY_MAN
+}
+
+enum Urgency {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL      // Urgency 9+
+}
+
+enum RequestStatus {
+  ONGOING       // Active, time remaining
+  COMPLETED     // Fully fulfilled before time expired
+  EXPIRED       // Time ran out, not fully fulfilled
+}
+
+enum DeliveryStatus {
+  PENDING       // Assigned, waiting for pickup
+  IN_TRANSIT    // Picked up by delivery man
+  COMPLETED     // Receiver confirmed receipt
+  FAILED        // Receiver marked as failed (e.g. damaged/missing)
+}
+
+enum ApplicationStatus {
+  NEW
+  VIEWED        // Coordinator opened it but didn't decide yet
+  APPROVED
+  REJECTED
+}
+
+// =======================
+// USER & AUTHENTICATION
+// =======================
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique // Sanitized: lowercase
+  passwordHash    String
+  role            Role
+  
+  // Profile Info
+  name            String    // Sanitized: Title Case
+  organization    String?   // Nullable (Delivery men are independent agents)
+  phone           String
+  address         String
+  city            String
+  website         String?
+  avatar          String?   // URL to image
+  
+  // Gamification & Stats
+  badges          String[]  // ["BRONZE", "SILVER"]
+  totalWeight     Float     @default(0) // kg
+  totalVolume     Float     @default(0) // liters
+  totalUnits      Int       @default(0) // pieces
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  inventory       SurplusInventory[]
+  sentMessages    Message[]         @relation("Sender")
+  receivedMessages Message[]        @relation("Receiver")
+  
+  // Role specific relations
+  foodRequests    FoodRequest[]     // Receiver: Created requests
+  logbooks        Logbook[]         // Receiver: Daily logs
+  deliveries      Delivery[]        // Delivery Man: Assigned jobs
+  allocations     Allocation[]      // Donor: Items given
+}
+
+model Application {
+  id              String            @id @default(uuid())
+  role            Role
+  name            String
+  organization    String?
+  email           String            // Sanitized: lowercase
+  phone           String
+  address         String
+  motivation      String            // "Why join"
+  status          ApplicationStatus @default(NEW)
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+// =======================
+// INVENTORY & CATEGORIES
+// =======================
+
+// Canonical list of food types (Chicken, Rice, Milk) defined by Dev
+model FoodCategory {
+  id              Int       @id @default(autoincrement()) // 000001, 000002
+  name            String    @unique // "Chicken", "Rice"
+  unit            String    // "kg", "liter", "pieces"
+  
+  inventoryItems  SurplusInventory[]
+  requestItems    RequestItem[]
+}
+
+model SurplusInventory {
+  id              String        @id @default(uuid())
+  donorId         String
+  donor           User          @relation(fields: [donorId], references: [id])
+  
+  categoryId      Int
+  category        FoodCategory  @relation(fields: [categoryId], references: [id])
+  
+  description     String        // "Fried Chicken", "Basmati Rice"
+  currentQuantity Float
+  batchNumber     String        // Sanitized: B001
+  expiryDate      DateTime
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  allocations     Allocation[]
+}
+
+// =======================
+// REQUESTS & LOGISTICS
+// =======================
+
+model FoodRequest {
+  id              String        @id @default(uuid())
+  receiverId      String
+  receiver        User          @relation(fields: [receiverId], references: [id])
+  
+  urgency         Urgency
+  status          RequestStatus @default(ONGOING)
+  expiresAt       DateTime      // Time remaining calculation
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  items           RequestItem[]
+}
+
+model RequestItem {
+  id              String        @id @default(uuid())
+  requestId       String
+  request         FoodRequest   @relation(fields: [requestId], references: [id])
+  
+  categoryId      Int
+  category        FoodCategory  @relation(fields: [categoryId], references: [id])
+  
+  quantityNeeded  Float
+  quantityFulfilled Float       @default(0) // Tracks partial fulfillment (e.g. 2/10kg)
+  
+  allocations     Allocation[]
+}
+
+// Linking a specific Donor's inventory to a Receiver's Request Item
+model Allocation {
+  id              String        @id @default(uuid())
+  donorId         String
+  donor           User          @relation(fields: [donorId], references: [id])
+  
+  inventoryId     String
+  inventory       SurplusInventory @relation(fields: [inventoryId], references: [id])
+  
+  requestItemId   String
+  requestItem     RequestItem   @relation(fields: [requestItemId], references: [id])
+  
+  allocatedQuantity Float
+  
+  deliveryId      String?
+  delivery        Delivery?     @relation(fields: [deliveryId], references: [id])
+  
+  createdAt       DateTime      @default(now())
+}
+
+model Delivery {
+  id              String        @id @default(uuid())
+  deliveryManId   String?       // Initially null until assigned
+  deliveryMan     User?         @relation(fields: [deliveryManId], references: [id])
+  
+  status          DeliveryStatus @default(PENDING)
+  
+  pickupAddress   String        // Copied from Donor for history
+  dropAddress     String        // Copied from Receiver for history
+  
+  pickupTime      DateTime?
+  deliveredTime   DateTime?
+  
+  allocations     Allocation[]  // A delivery can contain multiple items (Rice + Meat)
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+// =======================
+// LOGBOOK & MESSAGING
+// =======================
+
+model Logbook {
+  id              String    @id @default(uuid())
+  receiverId      String
+  receiver        User      @relation(fields: [receiverId], references: [id])
+  
+  date            DateTime  @default(now()) // Only one per day per user
+  
+  lunchEstimated  Int       // Step 1
+  dinnerEstimated Int?      // Step 2 (Locked until lunch complete)
+  
+  lunchServed     Int?
+  dinnerServed    Int?
+  
+  isLunchComplete Boolean   @default(false)
+  isDinnerComplete Boolean  @default(false)
+  
+  // Shortage Calculation
+  dailyShortage   Int       @default(0)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Message {
+  id              String    @id @default(uuid())
+  senderId        String
+  sender          User      @relation("Sender", fields: [senderId], references: [id])
+  
+  receiverId      String
+  receiver        User      @relation("Receiver", fields: [receiverId], references: [id])
+  
+  content         String
+  isRead          Boolean   @default(false)
+  
+  createdAt       DateTime  @default(now())
+}
