@@ -1,11 +1,10 @@
 // server/src/routes/auth.routes.ts
-
 import { Router } from 'express';
-import { login } from '../controllers/auth.controller';
+import { login, forgotPassword } from '../controllers/auth.controller'; // Import the new controller
 
 const router = Router();
 
-// POST /api/auth/login
 router.post('/login', login);
+router.post('/forgot-password', forgotPassword); // Register endpoint
 
 export default router;

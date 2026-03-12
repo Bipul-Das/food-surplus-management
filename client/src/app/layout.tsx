@@ -1,14 +1,15 @@
 // client/src/app/layout.tsx
+import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "./globals.css";
-import { ToastProvider } from "@/components/ui/ToastContext";
+import { Toaster } from "react-hot-toast";
 
-const inter = Inter({ subsets: ["latin"] });
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "Food Surplus Management",
-  description: "Enterprise platform for redistributing food surplus.",
+  title: "FoodSurplus Management",
+  description: "Enterprise Food Surplus Management System",
 };
 
 export default function RootLayout({
@@ -18,11 +19,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-brand-light text-brand-dark`}>
-        {/* Global Toast Provider replaces all alert() needs */}
-        <ToastProvider>
-          {children}
-        </ToastProvider>
+      <body className={`${inter.variable} font-sans bg-bg-page text-text-main antialiased`}>
+        {/* Global Notification Provider */}
+        <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
+        {children}
       </body>
     </html>
   );

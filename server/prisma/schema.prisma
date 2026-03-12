@@ -2,6 +2,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["driverAdapters"] // Add this line
 }
 
 datasource db {
@@ -28,16 +29,16 @@ enum Urgency {
 }
 
 enum RequestStatus {
-  ONGOING       // Active, time remaining
-  COMPLETED     // Fully fulfilled before time expired
-  EXPIRED       // Time ran out, not fully fulfilled
+  OPEN          // Actively seeking donations
+  PARTIAL       // Partially fulfilled, still needs more
+  FULFILLED     // Completely matched with pledges
 }
 
 enum DeliveryStatus {
-  PENDING       // Assigned, waiting for pickup
+  LOCKED        // Transaction locked, waiting for pickup
   IN_TRANSIT    // Picked up by delivery man
   COMPLETED     // Receiver confirmed receipt
-  FAILED        // Receiver marked as failed (e.g. damaged/missing)
+  FAILED        // Delivery failed (e.g. damaged/missing)
 }
 
 enum ApplicationStatus {
@@ -59,7 +60,7 @@ model User {
   
   // Profile Info
   name            String    // Sanitized: Title Case
-  organization    String?   // Nullable (Delivery men are independent agents)
+  organization    String?   // Nullable
   phone           String
   address         String
   city            String
@@ -77,14 +78,16 @@ model User {
 
   // Relations
   inventory       SurplusInventory[]
-  sentMessages    Message[]         @relation("Sender")
-  receivedMessages Message[]        @relation("Receiver")
+  sentMessages    Message[]          @relation("Sender")
+  receivedMessages Message[]         @relation("Receiver")
   
   // Role specific relations
-  foodRequests    FoodRequest[]     // Receiver: Created requests
-  logbooks        Logbook[]         // Receiver: Daily logs
-  deliveries      Delivery[]        // Delivery Man: Assigned jobs
-  allocations     Allocation[]      // Donor: Items given
+  foodRequests    FoodRequest[]      // Receiver: Created requests
+  logbooks        Logbook[]          // Receiver: Daily logs
+  
+  // Logistics Relations (Unified into Pledges)
+  donorPledges    Pledge[]           @relation("DonorPledges")
+  driverPledges   Pledge[]           @relation("DriverPledges")
 }
 
 model Application {
@@ -95,6 +98,7 @@ model Application {
   email           String            // Sanitized: lowercase
   phone           String
   address         String
+  city            String
   motivation      String            // "Why join"
   status          ApplicationStatus @default(NEW)
   
@@ -106,14 +110,14 @@ model Application {
 // INVENTORY & CATEGORIES
 // =======================
 
-// Canonical list of food types (Chicken, Rice, Milk) defined by Dev
 model FoodCategory {
-  id              Int       @id @default(autoincrement()) // 000001, 000002
-  name            String    @unique // "Chicken", "Rice"
-  unit            String    // "kg", "liter", "pieces"
+  id              Int               @id @default(autoincrement()) 
+  name            String            @unique // "Chicken", "Rice"
+  unit            String            // "kg", "liter", "pieces"
   
   inventoryItems  SurplusInventory[]
   requestItems    RequestItem[]
+  pledgeItems     PledgeItem[]      // Inverse relation fixed
 }
 
 model SurplusInventory {
@@ -132,7 +136,7 @@ model SurplusInventory {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   
-  allocations     Allocation[]
+  // Note: No direct link to Pledges/Allocations here to prevent Cascade Delete data loss.
 }
 
 // =======================
@@ -140,71 +144,73 @@ model SurplusInventory {
 // =======================
 
 model FoodRequest {
-  id              String        @id @default(uuid())
-  receiverId      String
-  receiver        User          @relation(fields: [receiverId], references: [id])
+  id             String        @id @default(uuid())
+  receiverId     String
+  receiver       User          @relation(fields: [receiverId], references: [id])
   
-  urgency         Urgency
-  status          RequestStatus @default(ONGOING)
-  expiresAt       DateTime      // Time remaining calculation
+  orgName        String
+  location       String
+  urgency        String        // Will now store '1', '2', or '3'
+  requiredWithin String?       // Format: "hr:min" (e.g., "02:30")
+  description    String?       // Short text area
+  status         RequestStatus @default(OPEN) 
   
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  items          RequestItem[]
+  pledges        Pledge[]
   
-  items           RequestItem[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 }
 
 model RequestItem {
-  id              String        @id @default(uuid())
+  id              String       @id @default(uuid())
   requestId       String
-  request         FoodRequest   @relation(fields: [requestId], references: [id])
-  
+  request         FoodRequest  @relation(fields: [requestId], references: [id])
   categoryId      Int
-  category        FoodCategory  @relation(fields: [categoryId], references: [id])
+  category        FoodCategory @relation(fields: [categoryId], references: [id])
   
-  quantityNeeded  Float
-  quantityFulfilled Float       @default(0) // Tracks partial fulfillment (e.g. 2/10kg)
-  
-  allocations     Allocation[]
+  initialQuantity Float        @default(0)  // <-- THIS MUST BE HERE
+  deficit         Float
 }
 
-// Linking a specific Donor's inventory to a Receiver's Request Item
-model Allocation {
-  id              String        @id @default(uuid())
+// The Unified Transaction Model (Replaces Allocation & Delivery)
+model Pledge {
+  id              String         @id @default(uuid())
+  
+  requestId       String
+  request         FoodRequest    @relation(fields: [requestId], references: [id])
+  
   donorId         String
-  donor           User          @relation(fields: [donorId], references: [id])
+  donor           User           @relation("DonorPledges", fields: [donorId], references: [id])
   
-  inventoryId     String
-  inventory       SurplusInventory @relation(fields: [inventoryId], references: [id])
+  driverId        String
+  driver          User           @relation("DriverPledges", fields: [driverId], references: [id])
   
-  requestItemId   String
-  requestItem     RequestItem   @relation(fields: [requestItemId], references: [id])
-  
-  allocatedQuantity Float
-  
-  deliveryId      String?
-  delivery        Delivery?     @relation(fields: [deliveryId], references: [id])
-  
-  createdAt       DateTime      @default(now())
-}
-
-model Delivery {
-  id              String        @id @default(uuid())
-  deliveryManId   String?       // Initially null until assigned
-  deliveryMan     User?         @relation(fields: [deliveryManId], references: [id])
-  
-  status          DeliveryStatus @default(PENDING)
-  
-  pickupAddress   String        // Copied from Donor for history
-  dropAddress     String        // Copied from Receiver for history
-  
+  // Unified Delivery Tracking
+  status          DeliveryStatus @default(LOCKED)
+  pickupAddress   String?        
+  dropAddress     String?        
   pickupTime      DateTime?
   deliveredTime   DateTime?
   
-  allocations     Allocation[]  // A delivery can contain multiple items (Rice + Meat)
+  items           PledgeItem[]
   
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // STRICT RULE: A donor can only have one active pledge per specific request
+  @@unique([requestId, donorId]) 
+}
+
+model PledgeItem {
+  id          String        @id @default(uuid())
+  pledgeId    String
+  pledge      Pledge        @relation(fields: [pledgeId], references: [id], onDelete: Cascade)
+  
+  categoryId  Int           // Fixed: Was String, now matches FoodCategory.id
+  category    FoodCategory  @relation(fields: [categoryId], references: [id])
+  
+  quantity    Float
 }
 
 // =======================
@@ -212,38 +218,38 @@ model Delivery {
 // =======================
 
 model Logbook {
-  id              String    @id @default(uuid())
-  receiverId      String
-  receiver        User      @relation(fields: [receiverId], references: [id])
+  id               String    @id @default(uuid())
+  receiverId       String
+  receiver         User      @relation(fields: [receiverId], references: [id])
   
-  date            DateTime  @default(now()) // Only one per day per user
+  date             DateTime  @default(now()) // Only one per day per user
   
-  lunchEstimated  Int       // Step 1
-  dinnerEstimated Int?      // Step 2 (Locked until lunch complete)
+  lunchEstimated   Int       // Step 1
+  dinnerEstimated  Int?      // Step 2 (Locked until lunch complete)
   
-  lunchServed     Int?
-  dinnerServed    Int?
+  lunchServed      Int?
+  dinnerServed     Int?
   
-  isLunchComplete Boolean   @default(false)
-  isDinnerComplete Boolean  @default(false)
+  isLunchComplete  Boolean   @default(false)
+  isDinnerComplete Boolean   @default(false)
   
   // Shortage Calculation
-  dailyShortage   Int       @default(0)
+  dailyShortage    Int       @default(0)
   
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
 
 model Message {
-  id              String    @id @default(uuid())
-  senderId        String
-  sender          User      @relation("Sender", fields: [senderId], references: [id])
+  id          String    @id @default(uuid())
+  senderId    String
+  sender      User      @relation("Sender", fields: [senderId], references: [id])
   
-  receiverId      String
-  receiver        User      @relation("Receiver", fields: [receiverId], references: [id])
+  receiverId  String
+  receiver    User      @relation("Receiver", fields: [receiverId], references: [id])
   
-  content         String
-  isRead          Boolean   @default(false)
+  content     String
+  isRead      Boolean   @default(false)
   
-  createdAt       DateTime  @default(now())
+  createdAt   DateTime  @default(now())
 }

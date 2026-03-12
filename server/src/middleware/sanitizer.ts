@@ -66,14 +66,19 @@ const sanitizeValue = (key: string, value: any): any => {
  * Global Middleware to intercept and clean req.body, req.query, and req.params
  */
 export const globalSanitizer = (req: Request, res: Response, next: NextFunction) => {
-  if (req.body) {
+  if (req.body && Object.keys(req.body).length > 0) {
     req.body = sanitizeValue('root', req.body);
   }
-  if (req.query) {
-    req.query = sanitizeValue('root', req.query);
+  
+  if (req.query && Object.keys(req.query).length > 0) {
+    const sanitizedQuery = sanitizeValue('root', req.query);
+    Object.assign(req.query, sanitizedQuery);
   }
-  if (req.params) {
-    req.params = sanitizeValue('root', req.params);
+  
+  if (req.params && Object.keys(req.params).length > 0) {
+    const sanitizedParams = sanitizeValue('root', req.params);
+    Object.assign(req.params, sanitizedParams);
   }
+  
   next();
 };

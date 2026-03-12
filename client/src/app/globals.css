@@ -1,12 +1,47 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
+/* 1. Tailwind v4 Theme Configuration */
+@theme {
+  /* Primary Colors */
+  --color-brand-blue: #1e3a8a;
+  --color-brand-light: #3b82f6;
+  --color-brand-dark: #172554;
+
+  /* Urgency Scale */
+  --color-urgency-low: #10b981;
+  --color-urgency-medium: #f59e0b;
+  --color-urgency-high: #ef4444;
+
+  /* Text & Backgrounds */
+  --color-text-main: #374151;
+  --color-text-secondary: #6b7280;
+  --color-bg-page: #f8fafc;
+  --color-bg-card: #ffffff;
+  --color-bg-input: #f3f4f6;
+
+  /* Shadows */
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+  /* Animations */
+  --animate-fade-in: fadeIn 0.3s ease-in-out;
+}
+
+/* Custom Keyframes */
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+/* 2. Base HTML styling */
 :root {
   --foreground-rgb: 55, 65, 81;
-  /* Dark Gray #374151 */
   --background-rgb: 248, 250, 252;
-  /* Soft Slate Gray #F8FAFC */
 }
 
 body {
@@ -17,7 +52,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom Scrollbar for a polished feel */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
 }
