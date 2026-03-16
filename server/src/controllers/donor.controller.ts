@@ -51,3 +51,44 @@ export const getDonorStats = async (req: AuthRequest, res: Response, next: NextF
     next(error);
   }
 };
+
+// Add this to the bottom of server/src/controllers/donor.controller.ts
+
+export const getMyDonations = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const donorId = req.user?.id || (req.user as any)?.userId;
+    if (!donorId) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    const pledges = await prisma.pledge.findMany({
+      where: { donorId },
+      include: {
+        request: true,
+        driver: true,
+        items: { include: { category: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const formatted = pledges.map((p) => {
+      // Map LOCKED to IN_TRANSIT visually per your requirements
+      const mappedStatus = p.status === 'LOCKED' ? 'IN_TRANSIT' : p.status;
+      
+      return {
+        id: p.id,
+        createdAt: p.createdAt,
+        receiverOrg: p.request.orgName,
+        driverName: p.driver.name,
+        status: mappedStatus,
+        items: p.items.map(i => ({
+          food: i.category.name,
+          quantity: i.quantity,
+          unit: i.category.unit
+        }))
+      };
+    });
+
+    res.status(200).json({ success: true, data: formatted });
+  } catch (error) {
+    next(error);
+  }
+};

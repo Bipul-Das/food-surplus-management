@@ -21,12 +21,6 @@ enum Role {
   DELIVERY_MAN
 }
 
-enum Urgency {
-  LOW
-  MEDIUM
-  HIGH
-  CRITICAL      // Urgency 9+
-}
 
 enum RequestStatus {
   OPEN          // Actively seeking donations

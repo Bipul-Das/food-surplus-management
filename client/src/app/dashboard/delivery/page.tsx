@@ -110,13 +110,19 @@ export default function DeliveryDashboard() {
               <div className="border-[2px] border-[#6aa84f] rounded-[32px] p-8 bg-white relative">
                 <div className="absolute -top-3 left-8 bg-white px-2 font-normal text-gray-900">Assigned deliveries</div>
                 
+                {/* IN client/src/app/dashboard/delivery_man/page.tsx */}
+                
                 {isLoading ? (
                   <div className="py-12 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-gray-900" /></div>
-                ) : deliveries.length === 0 ? (
+                ) : deliveries.filter(d => d.status === 'LOCKED' || d.status === 'IN_TRANSIT').length === 0 ? (
                   <div className="py-12 text-center text-gray-500 font-medium">No active logistics routed.</div>
                 ) : (
                   <div className="space-y-4">
-                    {deliveries.slice(0, delCount).map(del => (
+                    {/* ADDED FILTER LOGIC HERE */}
+                    {deliveries
+                      .filter(d => d.status === 'LOCKED' || d.status === 'IN_TRANSIT')
+                      .slice(0, delCount)
+                      .map(del => (
                       <div key={del.id} className="border-[1.5px] border-gray-900 p-4 text-[15px] font-medium text-gray-900 bg-white">
                         {del.details}<br/>
                         {del.payload}
@@ -125,7 +131,8 @@ export default function DeliveryDashboard() {
                   </div>
                 )}
                 
-                {delCount < deliveries.length && (
+                {/* Update Load More visibility logic to check filtered length */}
+                {delCount < deliveries.filter(d => d.status === 'LOCKED' || d.status === 'IN_TRANSIT').length && (
                   <div className="mt-8 flex justify-center">
                     <button 
                       onClick={() => setDelCount(prev => prev + 2)} 

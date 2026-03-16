@@ -90,10 +90,10 @@ export const createPledge = async (req: AuthRequest, res: Response, next: NextFu
           }
         }
 
-        await (tx as any).requestItem.update({
-          where: { id: requestItem.id },
-          data: { deficit: requestItem.deficit - pledgeQty }
-        });
+        // await (tx as any).requestItem.update({
+        //   where: { id: requestItem.id },
+        //   data: { deficit: requestItem.deficit - pledgeQty }
+        // });
 
         pledgeItemsData.push({ categoryId: category.id, quantity: pledgeQty });
       }

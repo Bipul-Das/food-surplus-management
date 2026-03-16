@@ -39,3 +39,44 @@ export const getMyDeliveries = async (req: AuthRequest, res: Response, next: Nex
     next(error);
   }
 };
+
+// Add this to the bottom of server/src/controllers/delivery.controller.ts
+
+export const getDeliveryHistory = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const driverId = req.user?.id || (req.user as any)?.userId;
+    if (!driverId) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    const deliveries = await prisma.pledge.findMany({
+      where: { driverId },
+      include: {
+        request: true,
+        donor: true,
+        items: { include: { category: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const formatted = deliveries.map(d => {
+      // Presentation Layer Mapping: LOCKED becomes IN_TRANSIT for the UI
+      const mappedStatus = d.status === 'LOCKED' ? 'IN_TRANSIT' : d.status;
+      
+      return {
+        id: d.id,
+        createdAt: d.createdAt,
+        status: mappedStatus,
+        receiverOrg: d.request.orgName,
+        donorOrg: d.donor.organization || d.donor.name,
+        items: d.items.map(i => ({
+          food: i.category.name,
+          quantity: i.quantity,
+          unit: i.category.unit
+        }))
+      };
+    });
+
+    res.status(200).json({ success: true, data: formatted });
+  } catch (error) {
+    next(error);
+  }
+};

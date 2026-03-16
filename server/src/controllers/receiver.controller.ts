@@ -61,3 +61,89 @@ export const getReceiverStats = async (req: AuthRequest, res: Response, next: Ne
     next(error);
   }
 };
+
+// Add these to the bottom of server/src/controllers/receiver.controller.ts
+
+export const getMyRequests = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const receiverId = req.user?.id || (req.user as any)?.userId;
+    if (!receiverId) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    const requests = await prisma.foodRequest.findMany({
+      where: { receiverId },
+      include: {
+        items: { include: { category: true } },
+        pledges: {
+          include: {
+            donor: true,
+            driver: true,
+            items: { include: { category: true } }
+          },
+          orderBy: { createdAt: 'desc' }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const formatted = requests.map((reqObj: any) => ({
+      ...reqObj,
+      items: reqObj.items.map((item: any) => ({
+        ...item,
+        food: item.category.name.charAt(0).toUpperCase() + item.category.name.slice(1),
+        unit: item.category.unit
+      }))
+    }));
+
+    res.status(200).json({ success: true, data: formatted });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updatePledgeStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { pledgeId } = req.params;
+    const { status } = req.body; // Expects 'COMPLETED' or 'FAILED'
+    const receiverId = req.user?.id || (req.user as any)?.userId;
+
+    const pledge = await (prisma as any).pledge.findUnique({
+      where: { id: pledgeId },
+      include: { request: true, items: true }
+    });
+
+    if (!pledge) throw new Error("Logistics record not found.");
+    if (pledge.request.receiverId !== receiverId) throw new Error("Security clearance denied.");
+    if (pledge.status !== 'LOCKED') throw new Error(`Logistics already marked as ${pledge.status}.`);
+
+    // Update this section in server/src/controllers/receiver.controller.ts
+
+// ACID Transaction for safe state updates
+    await prisma.$transaction(async (tx) => {
+      // CHANGED: Now listening for 'COMPLETED' to trigger the deficit deduction
+      if (status === 'COMPLETED') {
+        for (const pItem of pledge.items) {
+          const reqItem = await (tx as any).requestItem.findFirst({
+            where: { requestId: pledge.requestId, categoryId: pItem.categoryId }
+          });
+          if (reqItem) {
+            const newDeficit = Math.max(0, reqItem.deficit - pItem.quantity);
+            await (tx as any).requestItem.update({
+              where: { id: reqItem.id },
+              data: { deficit: newDeficit }
+            });
+          }
+        }
+      }
+
+      // Update the pledge status
+      await (tx as any).pledge.update({
+        where: { id: pledgeId },
+        data: { status }
+      });
+    });
+
+    res.status(200).json({ success: true, message: `Logistics status updated to ${status}` });
+  } catch (error) {
+    next(error);
+  }
+};
