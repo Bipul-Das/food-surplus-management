@@ -216,18 +216,19 @@ model Logbook {
   receiverId       String
   receiver         User      @relation(fields: [receiverId], references: [id])
   
-  date             DateTime  @default(now()) // Only one per day per user
+  date             DateTime  @default(now())
   
-  lunchEstimated   Int       // Step 1
-  dinnerEstimated  Int?      // Step 2 (Locked until lunch complete)
-  
+  lunchEstimated   Int       
+  dinnerEstimated  Int?      
   lunchServed      Int?
   dinnerServed     Int?
   
+  lunchMeal        String?   // ADD THIS LINE
+  dinnerMeal       String?   // ADD THIS LINE
+  
   isLunchComplete  Boolean   @default(false)
   isDinnerComplete Boolean   @default(false)
-  
-  // Shortage Calculation
+  isDinnerUnlocked Boolean @default(false)
   dailyShortage    Int       @default(0)
   
   createdAt        DateTime  @default(now())
