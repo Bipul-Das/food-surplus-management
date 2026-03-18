@@ -17,6 +17,8 @@ import deliveryRoutes from './routes/delivery.routes'; // Add this import at the
 import donorRoutes from './routes/donor.routes'; // Add to your imports
 import receiverRoutes from './routes/receiver.routes'; // Add this to your imports
 import logbookRoutes from './routes/logbook.routes';
+// Near the top with other imports:
+import profileRoutes from './routes/profile.routes';
 
 
 
@@ -58,6 +60,9 @@ app.use('/api/deliveries', deliveryRoutes);
 app.use('/api/donors', donorRoutes);
 app.use('/api/receivers', receiverRoutes);
 app.use('/api/logbooks', logbookRoutes);
+
+// Down where your other app.use statements are:
+app.use('/api/profile', profileRoutes);
 // 4. Global Error Handling (MUST be last)
 app.use(errorMiddleware);
 

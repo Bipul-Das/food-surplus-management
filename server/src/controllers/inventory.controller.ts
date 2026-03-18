@@ -103,8 +103,6 @@ export const deleteInventoryItem = async (req: AuthRequest, res: Response, next:
   }
 };
 
-// Add this to the bottom of server/src/controllers/inventory.controller.ts
-
 export const updateInventoryItem = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
@@ -145,6 +143,50 @@ export const updateInventoryItem = async (req: AuthRequest, res: Response, next:
     });
 
     res.status(200).json({ success: true, message: "Inventory updated securely.", data: updatedItem });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==========================================
+// NEW: PUBLIC INVENTORY AGGREGATION ENGINE
+// ==========================================
+export const getPublicInventories = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    // Fetch all active surplus items, including donor and category info
+    const activeInventories = await prisma.surplusInventory.findMany({
+      where: { currentQuantity: { gt: 0 } },
+      include: {
+        donor: true,
+        category: true
+      }
+    });
+
+    // Group the raw data by Donor to hide specific batches and quantities
+    const donorMap = new Map<string, any>();
+
+    for (const inv of activeInventories) {
+      if (!donorMap.has(inv.donorId)) {
+        donorMap.set(inv.donorId, {
+          donorId: inv.donor.id,
+          name: inv.donor.organization || inv.donor.name,
+          address: inv.donor.address,
+          city: inv.donor.city,
+          avatar: inv.donor.avatar,
+          categories: new Set<string>() // Use a Set to prevent duplicate tags
+        });
+      }
+      // Add the food category name to the donor's Set
+      donorMap.get(inv.donorId).categories.add(inv.category.name);
+    }
+
+    // Convert the Map and Sets back into clean JSON arrays for the frontend
+    const formatted = Array.from(donorMap.values()).map(d => ({
+      ...d,
+      categories: Array.from(d.categories)
+    }));
+
+    res.status(200).json({ success: true, data: formatted });
   } catch (error) {
     next(error);
   }
