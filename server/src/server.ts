@@ -20,7 +20,7 @@ import receiverRoutes from './routes/receiver.routes'; // Add this to your impor
 import logbookRoutes from './routes/logbook.routes';
 import profileRoutes from './routes/profile.routes';
 import editProfileRoutes from './routes/edit-profile.routes';
-
+import adminRoutes from './routes/admin.routes';
 
 
 
@@ -65,7 +65,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/requests', requestRoutes);
-
+app.use('/api/admin', adminRoutes);
 app.use('/api/deliveries', deliveryRoutes);
 app.use('/api/donors', donorRoutes);
 app.use('/api/receivers', receiverRoutes);

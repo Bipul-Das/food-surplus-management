@@ -159,7 +159,7 @@ export default function RequestsPage() {
   );
 
   return (
-    <ProtectedRoute allowedRoles={["DONOR", "RECEIVER", "COORDINATOR", "LEAD_DEV"]}>
+    <ProtectedRoute allowedRoles={["DONOR", "RECEIVER", "COORDINATOR", "LEAD_DEV", "DELIVERY_MAN"]}>
       <div className="min-h-screen bg-white flex flex-col font-sans">
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-12">
 

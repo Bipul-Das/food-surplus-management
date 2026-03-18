@@ -48,13 +48,17 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       data: {
         token,
         user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          organization: user.organization,
-          avatar: user.avatar
-        },
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        name: user.name,
+        organization: user.organization,
+        phone: user.phone,       // <-- ADDED
+        city: user.city,         // <-- ADDED
+        address: user.address,   // <-- ADDED
+        avatar: user.avatar,     // <-- ADDED
+        website: user.website    // <-- ADDED
+      },
       },
     });
   } catch (error) {

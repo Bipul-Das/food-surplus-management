@@ -18,7 +18,7 @@ const router = Router();
 // ==========================================
 
 // Expose the aggregated view to Receivers, Donors, and Devs
-router.get('/public', verifyToken, roleCheck(['RECEIVER', 'DONOR', 'LEAD_DEV']), getPublicInventories);
+router.get('/public', verifyToken, roleCheck(['RECEIVER', 'DONOR', 'LEAD_DEV', 'DELIVERY_MAN']), getPublicInventories);
 
 // ==========================================
 // PRIVATE/MANAGEMENT ROUTES

@@ -5,37 +5,35 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import PrivateNavbar from "@/components/layout/PrivateNavbar";
-import { Loader2 } from "lucide-react";
+import { MessagesWidget } from "@/components/dashboard/DashboardWidgets";
+import { ShieldCheck, Truck, Clock, Loader2, Send, Navigation } from "lucide-react";
 import toast from "react-hot-toast";
 import { useUserStore } from "@/store/userStore";
 
 // ----------------------------------------------------------------------
-// TYPE DEFINITIONS: Bridging the frontend store with backend schema
+// TYPE DEFINITIONS
 // ----------------------------------------------------------------------
 interface ExtendedUser {
-  id?: string; // Add this
+  id?: string;
   name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
   organization?: string;
   role?: string;
-  city?: string;
-  phone?: string;
 }
-
-// Mock data for messages until we build the real-time chat
-const MOCK_MESSAGES = [
-  { id: 1, sender: "jack", text: "Hi man whats up", date: "3 March" },
-  { id: 2, sender: "jimmy", text: "Hi man whats up", date: "3 March" }
-];
 
 export default function DeliveryDashboard() {
   const { user } = useUserStore();
-  
-  // Cast the global user to our extended local interface to satisfy strict TS
   const currentUser = user as ExtendedUser | null;
 
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [delCount, setDelCount] = useState(2);
   const [isLoading, setIsLoading] = useState(true);
+
+  // We leave this empty until the WebSocket architecture is deployed
+  const REAL_MESSAGES: any[] = [];
 
   useEffect(() => {
     const fetchDeliveries = async () => {
@@ -61,123 +59,154 @@ export default function DeliveryDashboard() {
     <ProtectedRoute allowedRoles={["DELIVERY_MAN", "LEAD_DEV"]}>
       <div className="min-h-screen bg-white flex flex-col font-sans">
         {/* <PrivateNavbar /> */}
-        
-        <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-8">
-          
-          <h1 className="text-2xl font-normal text-gray-900 mb-8 tracking-tight">Dashboard for delivery man</h1>
-          
-          {/* Navigation Tabs */}
-          <div className="flex border-[2px] border-gray-900 w-fit mb-10 bg-white">
-            <div className="px-8 py-3 border-r-[2px] border-gray-900 font-bold text-gray-900 bg-gray-100">
-              My deliveries
+
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8">
+
+          {/* Header Block */}
+          <div className="mb-10 pb-6 border-b-[2.5px] border-gray-900 flex justify-between items-end">
+            <div>
+              <h1 className="text-[32px] font-normal text-gray-900 tracking-tight uppercase">Logistics Operations</h1>
+              <p className="text-[16px] text-gray-600 mt-1">Manage active transport routes and delivery history.</p>
             </div>
-            <Link href="/requests" className="px-8 py-3 font-normal text-gray-900 hover:bg-gray-50 transition-colors">
-              Current requests
-            </Link>
+            <div className="bg-gray-900 text-white px-4 py-1.5 font-bold tracking-widest text-[14px] uppercase shadow-[2px_2px_0px_0px_rgba(107,114,128,1)]">
+              Authorized
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-            
-            {/* LEFT COLUMN: Logistics Pipeline (Span 3) */}
-            <div className="lg:col-span-3 space-y-8">
-              
-              {/* Profile Section */}
-              <div className="flex justify-center mb-4">
-                {/* CHANGED: Wrapped in Link and added hover styles */}
-                {currentUser?.id ? (
-                  <Link
-                    href={`/profile/${currentUser.id}`}
-                    className="px-8 py-2 bg-[#4a86e8] border-[2px] border-gray-900 rounded-full text-white font-medium text-lg tracking-wide shadow-sm hover:bg-[#3c6ec2] hover:-translate-y-0.5 transition-all block"
-                  >
-                    {currentUser?.name || "agent"}
-                  </Link>
-                ) : (
-                  <div className="px-8 py-2 bg-[#4a86e8] border-[2px] border-gray-900 rounded-full text-white font-medium text-lg tracking-wide shadow-sm">
-                    {currentUser?.name || "agent"}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+            {/* LEFT COLUMN: Main Telemetry */}
+            <div className="lg:col-span-8 space-y-8">
+
+              {/* 1. Quick Navigation Hub */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Link href="/my-deliveries" className="flex items-center justify-between p-4 border-[1.5px] border-gray-900 bg-[#f3f4f6] hover:bg-gray-900 hover:text-white transition-colors group">
+                  <div className="flex items-center gap-3">
+                    <Navigation className="w-5 h-5" />
+                    <span className="font-bold uppercase tracking-wide text-[14px]">My Deliveries</span>
                   </div>
-                )}
+                  <span className="font-normal text-xl group-hover:translate-x-1 transition-transform">→</span>
+                </Link>
+
+                <Link href="/requests" className="flex items-center justify-between p-4 border-[1.5px] border-gray-900 bg-[#f3f4f6] hover:bg-[#4a86e8] hover:text-white transition-colors group">
+                  <div className="flex items-center gap-3">
+                    <Send className="w-5 h-5" />
+                    <span className="font-bold uppercase tracking-wide text-[14px]">Current Requests</span>
+                  </div>
+                  <span className="font-normal text-xl group-hover:translate-x-1 transition-transform">→</span>
+                </Link>
               </div>
 
-              <div className="border-[2px] border-gray-900 p-6 text-[15px] font-medium text-gray-900 bg-white shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]">
-                <p>{currentUser?.organization || "Logistics Division"}</p>
-                <p className="mt-2">Role : {currentUser?.role?.replace('_', ' ').toLowerCase() || "delivery man"}</p>
-                <p className="mt-2">Zone : {currentUser?.city || "Unassigned"}</p>
-                <p className="mt-2">Contact : {currentUser?.phone || "-"}</p>
-              </div>
-
-              {/* Stats Matrix */}
-              <div className="grid grid-cols-2 gap-6">
-                <div className="bg-[#4a86e8] border-[2px] border-gray-900 p-6 rounded-xl flex flex-col items-center justify-center text-center shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]">
-                  <span className="text-white font-bold text-lg">Total delivered</span>
-                  <span className="text-white font-normal mt-1">{deliveries.length} times</span>
+              {/* 2. Identity Block */}
+              <div className="border-[1.5px] border-gray-900 bg-white p-6 md:p-8">
+                <div className="flex items-center justify-between border-b-[1.5px] border-gray-900 pb-4 mb-6">
+                  <span className="font-bold text-[14px] uppercase tracking-widest text-gray-500">Agent Identity</span>
+                  <ShieldCheck className="w-6 h-6 text-gray-900" />
                 </div>
-                <div className="bg-[#4a86e8] border-[2px] border-gray-900 p-6 rounded-xl flex flex-col items-center justify-center text-center shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]">
-                  <span className="text-white font-bold text-lg">This week delivered</span>
-                  <span className="text-white font-normal mt-1">0 times</span> {/* Logic for this week can be added later */}
+
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div>
+                    <h3 className="text-[28px] font-normal text-gray-900 mb-1">{currentUser?.name || "Logistics Agent"}</h3>
+                    <p className="text-[14px] font-bold text-gray-900 uppercase tracking-wider">Delivery Division</p>
+                  </div>
+
+                  <Link
+                    href={`/profile/${currentUser?.id}`}
+                    className="px-6 py-2.5 bg-gray-900 text-white font-bold text-[14px] uppercase tracking-widest hover:bg-[#4a86e8] hover:text-white transition-colors text-center shadow-[2px_2px_0px_0px_rgba(17,24,39,0.3)]"
+                  >
+                    View Public Profile
+                  </Link>
+                </div>
+
+                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="border-[1.5px] border-gray-200 p-4">
+                    <span className="block text-[12px] font-bold text-gray-500 uppercase tracking-widest mb-1">Official Email</span>
+                    <span className="text-[16px] font-medium text-gray-900">{currentUser?.email || "-"}</span>
+                  </div>
+
+                  {currentUser?.phone && (
+                    <div className="border-[1.5px] border-gray-200 p-4">
+                      <span className="block text-[12px] font-bold text-gray-500 uppercase tracking-widest mb-1">Contact</span>
+                      <span className="text-[16px] font-medium text-gray-900">{currentUser.phone}</span>
+                    </div>
+                  )}
+
+                  {(currentUser?.city || currentUser?.address) && (
+                    <div className="border-[1.5px] border-gray-200 p-4 md:col-span-2">
+                      <span className="block text-[12px] font-bold text-gray-500 uppercase tracking-widest mb-1">Assigned Zone</span>
+                      <span className="text-[16px] font-medium text-gray-900 capitalize">
+                        {[currentUser?.address, currentUser?.city].filter(Boolean).join(', ')}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Assigned Deliveries Roster */}
-              <div className="border-[2px] border-[#6aa84f] rounded-[32px] p-8 bg-white relative">
-                <div className="absolute -top-3 left-8 bg-white px-2 font-normal text-gray-900">Assigned deliveries</div>
-                
-                {/* IN client/src/app/dashboard/delivery_man/page.tsx */}
-                
+              {/* 3. Real-Time Telemetry */}
+              {isLoading ? (
+                <div className="flex justify-center py-12 border-[1.5px] border-gray-900"><Loader2 className="w-8 h-8 animate-spin text-gray-900" /></div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-[#f3f4f6] border-[1.5px] border-gray-900 p-6 flex flex-col items-center justify-center text-center transition-transform hover:-translate-y-1">
+                    <Truck className="w-8 h-8 mb-3 text-gray-900" />
+                    <span className="text-[32px] font-normal text-gray-900 leading-none">{deliveries.length}</span>
+                    <span className="text-[12px] font-bold uppercase text-gray-500 mt-2 tracking-wider">Total Delivered</span>
+                  </div>
+                  <div className="bg-[#e6e6e6] border-[1.5px] border-gray-900 p-6 flex flex-col items-center justify-center text-center transition-transform hover:-translate-y-1">
+                    <Clock className="w-8 h-8 mb-3 text-gray-900" />
+                    <span className="text-[32px] font-normal text-gray-900 leading-none">0</span>
+                    <span className="text-[12px] font-bold uppercase text-gray-500 mt-2 tracking-wider">This Week Delivered</span>
+                  </div>
+                </div>
+              )}
+
+              {/* 4. Active Logistics Roster */}
+              <div className="border-[1.5px] border-gray-900 bg-white p-6 md:p-8 relative">
+                <div className="absolute -top-3 left-6 bg-white px-3 font-bold text-[14px] uppercase tracking-widest text-gray-900">
+                  Assigned Deliveries
+                </div>
+
                 {isLoading ? (
                   <div className="py-12 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-gray-900" /></div>
                 ) : deliveries.filter(d => d.status === 'LOCKED' || d.status === 'IN_TRANSIT').length === 0 ? (
-                  <div className="py-12 text-center text-gray-500 font-medium">No active logistics routed.</div>
+                  <div className="bg-[#f3f4f6] border-[1.5px] border-gray-900 p-8 mt-4 text-center text-[15px] font-medium text-gray-600 uppercase tracking-wider">
+                    No active logistics routed.
+                  </div>
                 ) : (
-                  <div className="space-y-4">
-                    {/* ADDED FILTER LOGIC HERE */}
+                  <div className="space-y-4 mt-4">
                     {deliveries
                       .filter(d => d.status === 'LOCKED' || d.status === 'IN_TRANSIT')
                       .slice(0, delCount)
                       .map(del => (
-                      <div key={del.id} className="border-[1.5px] border-gray-900 p-4 text-[15px] font-medium text-gray-900 bg-white">
-                        {del.details}<br/>
-                        {del.payload}
-                      </div>
-                    ))}
+                        <div key={del.id} className="border-[1.5px] border-gray-900 p-5 text-[15px] font-medium text-gray-900 bg-gray-50 flex flex-col gap-2">
+                          <div className="flex justify-between items-center border-b border-gray-200 pb-2">
+                            <span className="font-bold text-[#cc0000] uppercase tracking-wider text-[12px]">Status: {del.status}</span>
+                            <span className="text-gray-500 text-[12px]">{new Date(del.createdAt).toLocaleDateString()}</span>
+                          </div>
+                          <div>{del.details}</div>
+                          <div className="text-[#4a86e8]">{del.payload}</div>
+                        </div>
+                      ))}
                   </div>
                 )}
-                
-                {/* Update Load More visibility logic to check filtered length */}
+
                 {delCount < deliveries.filter(d => d.status === 'LOCKED' || d.status === 'IN_TRANSIT').length && (
                   <div className="mt-8 flex justify-center">
-                    <button 
-                      onClick={() => setDelCount(prev => prev + 2)} 
-                      className="px-8 py-2 border-[1.5px] border-gray-900 font-normal text-gray-900 hover:bg-gray-50 transition-colors"
+                    <button
+                      onClick={() => setDelCount(prev => prev + 2)}
+                      className="px-10 py-2.5 bg-white border-[1.5px] border-gray-900 text-gray-900 font-normal text-[18px] hover:bg-gray-50 transition-colors shadow-sm"
                     >
                       Load more
                     </button>
                   </div>
                 )}
               </div>
+
             </div>
 
-            {/* RIGHT COLUMN: Comms (Span 2) */}
-            <div className="lg:col-span-2">
-              <div className="border-[2px] border-gray-900 bg-white h-full min-h-[600px] flex flex-col">
-                <div className="px-6 py-4 border-b-[2px] border-gray-900 font-normal text-gray-900">
-                  Unread messages
-                </div>
-                <div className="p-4 flex-1 space-y-4">
-                  {MOCK_MESSAGES.map(msg => (
-                    <div key={msg.id} className="border-[2px] border-[#6aa84f] p-4 bg-white relative">
-                      <div className="flex items-start gap-4 mb-6">
-                        <div className="px-4 py-2 bg-[#4a86e8] border-[1.5px] border-gray-900 rounded-full text-white text-sm font-medium">
-                          {msg.sender}
-                        </div>
-                        <p className="text-[15px] text-gray-900 font-medium mt-2">{msg.text}</p>
-                      </div>
-                      <div className="text-right text-[14px] text-gray-800 font-normal mt-4">
-                        {msg.date}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            {/* RIGHT COLUMN: COMMS Hub */}
+            <div className="lg:col-span-4 h-[600px] lg:sticky lg:top-24">
+              <MessagesWidget messages={REAL_MESSAGES} />
             </div>
 
           </div>

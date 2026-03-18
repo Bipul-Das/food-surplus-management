@@ -28,7 +28,7 @@ export default function PublicNavbar() {
       case "LEAD_DEV": return "/dashboard/admin";
       case "DONOR": return "/dashboard/donor";
       case "RECEIVER": return "/dashboard/receiver";
-      case "DELIVERY_MAN": return "/dashboard/delivery";
+      case "DELIVERY_MAN": return "/dashboard/delivery_man";
       case "COORDINATOR": return "/dashboard/coordinator";
       default: return "/";
     }

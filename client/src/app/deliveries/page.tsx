@@ -43,7 +43,7 @@ export default function DeliveryDirectoryPage() {
   );
 
   return (
-    <ProtectedRoute allowedRoles={["DONOR", "RECEIVER", "COORDINATOR", "LEAD_DEV"]}>
+    <ProtectedRoute allowedRoles={["DONOR", "RECEIVER", "COORDINATOR", "LEAD_DEV", "DELIVERY_MAN"]}>
       <div className="min-h-screen bg-white flex flex-col font-sans">
         <PrivateNavbar />
         

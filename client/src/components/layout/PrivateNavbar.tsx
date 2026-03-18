@@ -109,7 +109,7 @@ export default function PrivateNavbar() {
       ];
     } else if (role === "DELIVERY_MAN") {
       config = [
-        { title: "Only Me", links: [{ name: "Public Profile", href: `/profile/${user.id}` }, { name: "Dashboard", href: "/dashboard/delivery" }, { name: "Edit Profile", href: "/edit-profile" }, { name: "My Deliveries", href: "/my-deliveries" }, { name: "Messages", href: "/messages" }] },
+        { title: "Only Me", links: [{ name: "Public Profile", href: `/profile/${user.id}` }, { name: "Dashboard", href: "/dashboard/delivery_man" }, { name: "Edit Profile", href: "/edit-profile" }, { name: "My Deliveries", href: "/my-deliveries" }, { name: "Messages", href: "/messages" }] },
         { title: "Global", links: [{ name: "All Inventories", href: "/inventory_all" }, { name: "Active Requests", href: "/requests" }, { name: "Active Deliveries", href: "/deliveries" }, { name: "Apply", href: "/apply" }] }
       ];
     } else if (role === "COORDINATOR") {

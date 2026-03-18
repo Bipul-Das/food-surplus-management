@@ -30,7 +30,7 @@ router.patch('/me', verifyToken, globalSanitizer, updateMe);
 // =====================================
 
 router.post('/create', verifyToken, roleCheck(['COORDINATOR', 'LEAD_DEV']), createUser);
-router.get('/', verifyToken, roleCheck(['LEAD_DEV', 'COORDINATOR', 'DONOR', 'RECEIVER']), getAllUsers);
+router.get('/', verifyToken, roleCheck(['LEAD_DEV', 'COORDINATOR', 'DONOR', 'RECEIVER', 'DELIVERY_MAN']), getAllUsers);
 
 // Dynamic parameter routes (/:id) MUST go at the very bottom
 router.patch('/:id', verifyToken, roleCheck(['COORDINATOR', 'LEAD_DEV']), updateUserById);
