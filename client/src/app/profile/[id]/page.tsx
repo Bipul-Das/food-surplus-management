@@ -94,9 +94,18 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
             <div className="lg:col-span-4 border-[1.5px] border-gray-900 p-6 flex flex-col min-h-[600px] relative bg-white">
               <h2 className="text-[32px] font-normal text-gray-900 mb-6 tracking-tight">Basic info</h2>
 
-              <div className="w-16 h-16 bg-[#4a86e8] border-[1.5px] border-gray-900 rounded-[50%] flex items-center justify-center text-white text-[20px] font-normal mb-8 shadow-sm">
-                {initials}
-              </div>
+              {/* FIX 1: Display Avatar if it exists, otherwise fall back to Initials */}
+              {user.avatar ? (
+                <img
+                  src={user.avatar.startsWith('http') ? user.avatar : `http://localhost:5000${user.avatar}`}
+                  alt={`${user.organization || user.name} profile picture`}
+                  className="w-16 h-16 border-[1.5px] border-gray-900 rounded-[50%] mb-8 shadow-sm object-cover"
+                />
+              ) : (
+                <div className="w-16 h-16 bg-[#4a86e8] border-[1.5px] border-gray-900 rounded-[50%] flex items-center justify-center text-white text-[20px] font-normal mb-8 shadow-sm">
+                  {initials}
+                </div>
+              )}
 
               <ul className="space-y-4 mb-12 flex-1">
                 <li className="flex items-start gap-2"><span className="text-xl leading-none">&bull;</span> <span className="text-[17px] capitalize">{user.organization || user.name}</span></li>
@@ -108,8 +117,17 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
 
               <div className="mt-auto">
                 <h3 className="text-[28px] font-normal text-gray-900 mb-4 tracking-tight">Website</h3>
+
+                {/* FIX 2: Render actual URL text and strip https:// for cleaner UI */}
                 {user.website ? (
-                  <a href={user.website} target="_blank" rel="noopener noreferrer" className="text-[#4a86e8] hover:underline mb-6 block text-[17px]">Visit site</a>
+                  <a
+                    href={user.website.startsWith('http') ? user.website : `https://${user.website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#4a86e8] hover:underline mb-6 block text-[17px]"
+                  >
+                    {user.website.replace(/^https?:\/\//, '')}
+                  </a>
                 ) : (
                   <p className="text-gray-500 mb-6 text-[17px]">No website provided</p>
                 )}
@@ -364,7 +382,6 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
           </div>
         </main>
 
-        {/* Custom CSS to inject the brutalist scrollbar shown in the wireframe */}
         <style dangerouslySetInnerHTML={{
           __html: `
           .custom-scrollbar::-webkit-scrollbar {

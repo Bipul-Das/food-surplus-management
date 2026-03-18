@@ -13,6 +13,7 @@ import { useUserStore } from "@/store/userStore";
 // TYPE DEFINITIONS: Bridging the frontend store with backend schema
 // ----------------------------------------------------------------------
 interface ExtendedUser {
+  id?: string; // Add this
   name?: string;
   organization?: string;
   role?: string;
@@ -59,7 +60,7 @@ export default function DeliveryDashboard() {
   return (
     <ProtectedRoute allowedRoles={["DELIVERY_MAN", "LEAD_DEV"]}>
       <div className="min-h-screen bg-white flex flex-col font-sans">
-        <PrivateNavbar />
+        {/* <PrivateNavbar /> */}
         
         <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-8">
           
@@ -82,11 +83,21 @@ export default function DeliveryDashboard() {
               
               {/* Profile Section */}
               <div className="flex justify-center mb-4">
-                <div className="px-8 py-2 bg-[#4a86e8] border-[2px] border-gray-900 rounded-full text-white font-medium text-lg tracking-wide shadow-sm">
-                  {currentUser?.name || "agent"}
-                </div>
+                {/* CHANGED: Wrapped in Link and added hover styles */}
+                {currentUser?.id ? (
+                  <Link
+                    href={`/profile/${currentUser.id}`}
+                    className="px-8 py-2 bg-[#4a86e8] border-[2px] border-gray-900 rounded-full text-white font-medium text-lg tracking-wide shadow-sm hover:bg-[#3c6ec2] hover:-translate-y-0.5 transition-all block"
+                  >
+                    {currentUser?.name || "agent"}
+                  </Link>
+                ) : (
+                  <div className="px-8 py-2 bg-[#4a86e8] border-[2px] border-gray-900 rounded-full text-white font-medium text-lg tracking-wide shadow-sm">
+                    {currentUser?.name || "agent"}
+                  </div>
+                )}
               </div>
-              
+
               <div className="border-[2px] border-gray-900 p-6 text-[15px] font-medium text-gray-900 bg-white shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]">
                 <p>{currentUser?.organization || "Logistics Division"}</p>
                 <p className="mt-2">Role : {currentUser?.role?.replace('_', ' ').toLowerCase() || "delivery man"}</p>

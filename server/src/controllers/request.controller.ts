@@ -15,25 +15,14 @@ export const createPledge = async (req: AuthRequest, res: Response, next: NextFu
       return res.status(400).json({ success: false, message: "Telemetry Error: Frontend did not send a driverId." });
     }
 
-    // Force lowercase to resolve UUID text-casing mismatches
     const cleanDriverId = String(driverId).trim().toLowerCase();
 
     const driver = await (prisma as any).user.findFirst({ 
       where: { id: cleanDriverId } 
     });
     
-    if (!driver) {
-      return res.status(400).json({ 
-        success: false, 
-        message: `Telemetry Error: Database rejected ID '${cleanDriverId}'. User does not exist.` 
-      });
-    }
-
-    if (driver.role !== 'DELIVERY_MAN') {
-      return res.status(400).json({ 
-        success: false, 
-        message: `Telemetry Error: User '${driver.name}' is a ${driver.role}, not a DELIVERY_MAN.` 
-      });
+    if (!driver || driver.role !== 'DELIVERY_MAN') {
+      return res.status(400).json({ success: false, message: `Telemetry Error: Invalid Delivery Man.` });
     }
 
     const existingPledge = await (prisma as any).pledge.findFirst({
@@ -41,10 +30,7 @@ export const createPledge = async (req: AuthRequest, res: Response, next: NextFu
     });
     
     if (existingPledge) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Transaction Denied: You have already committed a pledge to this specific request." 
-      });
+      return res.status(400).json({ success: false, message: "Transaction Denied: You have already committed a pledge." });
     }
 
     const transactionResult = await prisma.$transaction(async (tx) => {
@@ -62,7 +48,7 @@ export const createPledge = async (req: AuthRequest, res: Response, next: NextFu
         });
         
         if (!requestItem) throw new Error(`Transaction Denied: Receiver did not request ${foodName}.`);
-        if (pledgeQty > requestItem.deficit) throw new Error(`Transaction Denied: Cannot pledge more ${foodName} than the required deficit.`);
+        if (pledgeQty > requestItem.deficit) throw new Error(`Transaction Denied: Cannot pledge more than deficit.`);
 
         const inventoryBatches = await tx.surplusInventory.findMany({
           where: { donorId, categoryId: category.id },
@@ -90,39 +76,28 @@ export const createPledge = async (req: AuthRequest, res: Response, next: NextFu
           }
         }
 
-        // await (tx as any).requestItem.update({
-        //   where: { id: requestItem.id },
-        //   data: { deficit: requestItem.deficit - pledgeQty }
-        // });
+        // Deficit drops on pledge to prevent over-donating
+        await (tx as any).requestItem.update({
+          where: { id: requestItem.id },
+          data: { deficit: requestItem.deficit - pledgeQty }
+        });
 
         pledgeItemsData.push({ categoryId: category.id, quantity: pledgeQty });
       }
 
-      if (pledgeItemsData.length === 0) {
-        throw new Error("Transaction Denied: No valid quantities provided.");
-      }
+      if (pledgeItemsData.length === 0) throw new Error("Transaction Denied: No valid quantities.");
 
       const newPledge = await (tx as any).pledge.create({
         data: {
-          requestId,
-          donorId,
-          driverId: cleanDriverId,
-          status: "LOCKED",
-          items: {
-            create: pledgeItemsData
-          }
+          requestId, donorId, driverId: cleanDriverId, status: "LOCKED",
+          items: { create: pledgeItemsData }
         }
       });
 
       return newPledge;
     });
 
-    res.status(201).json({
-      success: true,
-      message: "Pledge successfully locked to Logistics.",
-      data: transactionResult
-    });
-
+    res.status(201).json({ success: true, message: "Pledge successfully locked.", data: transactionResult });
   } catch (error: any) {
     res.status(400).json({ success: false, message: error.message || "Allocation failed." });
   }
@@ -131,14 +106,69 @@ export const createPledge = async (req: AuthRequest, res: Response, next: NextFu
 export const getActiveRequests = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const requests = await prisma.foodRequest.findMany({
-      where: { status: { in: ['OPEN', 'PARTIAL'] as any } },
-      include: {
-        items: { include: { category: true } }
+      include: { 
+        items: { include: { category: true } },
+        // NEW: We must include pledges so frontend can calculate PHYSICAL RECEIPT progress
+        pledges: { include: { donor: true, driver: true, items: { include: { category: true } } } }
       },
-      orderBy: { createdAt: 'asc' }
+      orderBy: { createdAt: 'desc' }
     });
     
-    const formatted = requests.map((reqObj: any) => ({
+    const now = new Date();
+    const processedRequests = [];
+
+    for (const reqObj of requests) {
+      let currentStatus: string = reqObj.status;
+
+      if (currentStatus === 'OPEN' || currentStatus === 'PARTIAL') {
+        
+        // FULFILLED is now strictly calculated based on COMPLETED physical receipt
+        const completedPledges = reqObj.pledges?.filter((p: any) => p.status === 'COMPLETED') || [];
+        const isFulfilled = reqObj.items.length > 0 && reqObj.items.every((item: any) => {
+          const demanded = item.initialQuantity || item.deficit || 0;
+          const received = completedPledges.reduce((sum: number, p: any) => {
+            const pItem = p.items.find((pi: any) => pi.categoryId === item.categoryId);
+            return sum + (pItem ? pItem.quantity : 0);
+          }, 0);
+          return received >= demanded;
+        });
+
+        const isPartial = reqObj.items.some((i: any) => i.deficit < i.initialQuantity) && !isFulfilled;
+        
+        let isExpired = false;
+        if (!isFulfilled && reqObj.requiredWithin) {
+          const [hours, minutes] = reqObj.requiredWithin.split(':').map(Number);
+          const expiryTime = new Date(reqObj.createdAt);
+          expiryTime.setHours(expiryTime.getHours() + (hours || 0));
+          expiryTime.setMinutes(expiryTime.getMinutes() + (minutes || 0));
+          if (now > expiryTime) isExpired = true;
+        }
+
+        let newStatus = currentStatus;
+        if (isFulfilled) newStatus = 'FULFILLED';
+        else if (isExpired) newStatus = 'EXPIRED';
+        else if (isPartial) newStatus = 'PARTIAL';
+        else newStatus = 'OPEN';
+
+        if (newStatus !== currentStatus) {
+          await prisma.foodRequest.update({ where: { id: reqObj.id }, data: { status: newStatus as any } });
+          currentStatus = newStatus;
+        }
+      }
+      
+      reqObj.status = currentStatus as any;
+      processedRequests.push(reqObj);
+    }
+
+    processedRequests.sort((a: any, b: any) => {
+      const aActive = a.status === 'OPEN' || a.status === 'PARTIAL';
+      const bActive = b.status === 'OPEN' || b.status === 'PARTIAL';
+      if (aActive && !bActive) return -1;
+      if (!aActive && bActive) return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+    
+    const formatted = processedRequests.map((reqObj: any) => ({
       id: reqObj.id,
       receiverId: reqObj.receiverId,
       orgName: reqObj.orgName,
@@ -147,9 +177,12 @@ export const getActiveRequests = async (req: AuthRequest, res: Response, next: N
       createdAt: reqObj.createdAt,
       requiredWithin: reqObj.requiredWithin,
       description: reqObj.description,
+      status: reqObj.status,
+      pledges: reqObj.pledges, // NEW: Expose to frontend
       items: reqObj.items.map((item: any) => ({
+        categoryId: item.categoryId, // NEW: Expose for math
         food: item.category.name.charAt(0).toUpperCase() + item.category.name.slice(1),
-        initialQuantity: item.initialQuantity, // FIXED: Maps the permanent demand
+        initialQuantity: item.initialQuantity, 
         deficit: item.deficit,
         unit: item.category.unit
       }))
@@ -163,9 +196,7 @@ export const getActiveRequests = async (req: AuthRequest, res: Response, next: N
 
 export const getCategories = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const categories = await prisma.foodCategory.findMany({
-      orderBy: { name: 'asc' }
-    });
+    const categories = await prisma.foodCategory.findMany({ orderBy: { name: 'asc' } });
     res.status(200).json({ success: true, data: categories });
   } catch (error) {
     next(error);
@@ -178,16 +209,12 @@ export const createRequest = async (req: AuthRequest, res: Response, next: NextF
     const { items, urgency, requiredWithin, description } = req.body;
 
     if (!receiverId) return res.status(401).json({ success: false, message: "Unauthorized." });
-
     const receiver = await prisma.user.findUnique({ where: { id: receiverId } });
     
     if (!receiver || !['RECEIVER', 'LEAD_DEV'].includes(receiver.role)) {
-      return res.status(403).json({ success: false, message: "Access Denied: Insufficient privileges to create deficits." });
+      return res.status(403).json({ success: false, message: "Access Denied." });
     }
-
-    if (!items || items.length === 0) {
-      return res.status(400).json({ success: false, message: "You must request at least one item." });
-    }
+    if (!items || items.length === 0) return res.status(400).json({ success: false, message: "Request items." });
 
     const newRequest = await prisma.$transaction(async (tx) => {
       const request = await (tx as any).foodRequest.create({
@@ -201,7 +228,7 @@ export const createRequest = async (req: AuthRequest, res: Response, next: NextF
           items: {
             create: items.map((item: any) => ({
               categoryId: Number(item.categoryId),
-              initialQuantity: Number(item.quantity), // FIXED: Saves the permanent demand
+              initialQuantity: Number(item.quantity), 
               deficit: Number(item.quantity)
             }))
           }
@@ -213,6 +240,6 @@ export const createRequest = async (req: AuthRequest, res: Response, next: NextF
 
     res.status(201).json({ success: true, message: "Request broadcasted successfully.", data: newRequest });
   } catch (error: any) {
-    res.status(400).json({ success: false, message: error.message || "Failed to create request." });
+    res.status(400).json({ success: false, message: error.message || "Failed." });
   }
 };

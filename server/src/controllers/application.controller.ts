@@ -2,12 +2,11 @@
 import { Request, Response, NextFunction } from 'express';
 import prisma from '../utils/prisma';
 
-export const getPendingApplications = async (req: Request, res: Response, next: NextFunction) => {
+export const getAllApplications = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // FIX 1: Query for 'NEW' instead of 'PENDING' based on your Prisma enum
+    // FIX: Removed the 'where' clause so we fetch both NEW and historical applications
     const applications = await prisma.application.findMany({
-      where: { status: 'NEW' }, 
-      orderBy: { createdAt: 'asc' }
+      orderBy: { createdAt: 'desc' } // Puts the newest applications at the very top
     });
 
     res.status(200).json({
@@ -21,11 +20,9 @@ export const getPendingApplications = async (req: Request, res: Response, next: 
 
 export const updateApplicationStatus = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // FIX 2: Explicitly cast id as a string to satisfy TypeScript
     const id = req.params.id as string; 
     let { status } = req.body; 
 
-    // Map frontend terminology to your exact Prisma schema terminology
     if (status === 'DECLINED') status = 'REJECTED';
 
     const updatedApplication = await prisma.application.update({
@@ -38,6 +35,29 @@ export const updateApplicationStatus = async (req: Request, res: Response, next:
       message: `Application ${status.toLowerCase()} successfully.`,
       data: updatedApplication
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Add this to your application.controller.ts
+export const createApplication = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { name, email, phone, city, address, motivation, role } = req.body;
+    
+    const newApp = await prisma.application.create({
+      data: {
+        name,
+        email: email.toLowerCase(),
+        phone,
+        city,
+        address,
+        motivation,
+        role
+      }
+    });
+
+    res.status(201).json({ success: true, data: newApp });
   } catch (error) {
     next(error);
   }

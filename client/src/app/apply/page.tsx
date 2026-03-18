@@ -6,10 +6,11 @@ import Link from "next/link";
 import { z } from "zod";
 import PublicNavbar from "@/components/layout/PublicNavbar";
 import Footer from "@/components/layout/Footer";
-import { 
-  Building2, HeartHandshake, Truck, 
-  ShieldCheck, Globe, Leaf, ArrowRight, CheckCircle2 
+import {
+  Building2, HeartHandshake, Truck,
+  ShieldCheck, Globe, Leaf, ArrowRight, CheckCircle2, Loader2
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 // 1. Strict Zod Schema for Frontend Validation
 const applicationSchema = z.object({
@@ -28,11 +29,12 @@ type ApplicationFormData = z.infer<typeof applicationSchema>;
 
 export default function ApplyPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof ApplicationFormData, string>>>({});
-  
-  // Form State (No default values, only empty strings for placeholders)
+
+  // Form State
   const [formData, setFormData] = useState<ApplicationFormData>({
-    role: "DONOR", // Defaulting the radio selection for UI UX, but can be empty if preferred
+    role: "DONOR",
     name: "",
     email: "",
     phone: "",
@@ -49,17 +51,17 @@ export default function ApplyPage() {
       .split(" ")
       .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(" ");
-    
+
     setFormData(prev => ({ ...prev, name: sanitized }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
 
     // Validate against strict Zod schema
     const validation = applicationSchema.safeParse(formData);
-    
+
     if (!validation.success) {
       const fieldErrors: any = {};
       validation.error.issues.forEach(issue => {
@@ -69,10 +71,38 @@ export default function ApplyPage() {
       return;
     }
 
-    // Simulate secure API transmission to Coordinators
-    setTimeout(() => {
-      setIsSubmitted(true);
-    }, 800);
+    setIsSubmitting(true);
+
+    try {
+      // REAL DATABASE CONNECTION
+      const response = await fetch("http://localhost:5000/api/applications", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          role: formData.role,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          city: formData.city,
+          address: formData.location, // Mapping to Prisma Schema
+          motivation: formData.reason // Mapping to Prisma Schema
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setIsSubmitted(true);
+      } else {
+        toast.error(result.message || "Failed to submit application.");
+      }
+    } catch (error) {
+      toast.error("Network error. Please ensure the server is running.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -81,9 +111,9 @@ export default function ApplyPage() {
 
       <main className="flex-1 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-start">
-            
+
             {/* LEFT COLUMN: Humanitarian Impact & B2B Copy */}
             <div className="lg:col-span-5 space-y-8 lg:sticky lg:top-24">
               <div>
@@ -131,7 +161,7 @@ export default function ApplyPage() {
             {/* RIGHT COLUMN: The Application Form */}
             <div className="lg:col-span-7">
               <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-                
+
                 {isSubmitted ? (
                   <div className="p-12 flex flex-col items-center text-center animate-fade-in">
                     <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mb-6">
@@ -153,7 +183,7 @@ export default function ApplyPage() {
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-6">
-                      
+
                       {/* Entity Type Selection */}
                       <div className="space-y-3">
                         <label className="text-sm font-bold text-brand-dark uppercase tracking-wider">Requested Operational Role</label>
@@ -163,17 +193,17 @@ export default function ApplyPage() {
                             { id: "RECEIVER", icon: HeartHandshake, label: "Receiver / NGO" },
                             { id: "DELIVERY_MAN", icon: Truck, label: "Delivery Logistics" }
                           ].map((role) => (
-                            <label 
-                              key={role.id} 
+                            <label
+                              key={role.id}
                               className={`relative flex flex-col items-center p-4 border rounded-xl cursor-pointer transition-all ${formData.role === role.id ? 'border-brand-blue bg-blue-50/50 shadow-sm' : 'border-gray-200 hover:border-brand-light hover:bg-gray-50'}`}
                             >
-                              <input 
-                                type="radio" 
-                                name="role" 
+                              <input
+                                type="radio"
+                                name="role"
                                 value={role.id}
                                 checked={formData.role === role.id}
-                                onChange={(e) => setFormData({...formData, role: e.target.value as ApplicationFormData["role"]})}
-                                className="sr-only" 
+                                onChange={(e) => setFormData({ ...formData, role: e.target.value as ApplicationFormData["role"] })}
+                                className="sr-only"
                               />
                               <role.icon className={`w-6 h-6 mb-2 ${formData.role === role.id ? 'text-brand-blue' : 'text-gray-400'}`} />
                               <span className={`text-sm font-bold ${formData.role === role.id ? 'text-brand-blue' : 'text-text-main'}`}>{role.label}</span>
@@ -184,14 +214,14 @@ export default function ApplyPage() {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Name Input with Auto-Capitalize */}
+                        {/* Name Input */}
                         <div className="space-y-2">
                           <label className="text-sm font-bold text-text-main">Entity / Individual Name</label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             placeholder="e.g., Grand Hotel Dhaka"
                             value={formData.name}
-                            onChange={(e) => setFormData({...formData, name: e.target.value})}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             onBlur={handleNameBlur}
                             className={`w-full px-4 py-3 rounded-lg bg-bg-input border ${errors.name ? 'border-urgency-high' : 'border-transparent'} focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-light/20 transition-all outline-none`}
                           />
@@ -201,11 +231,11 @@ export default function ApplyPage() {
                         {/* Phone Input */}
                         <div className="space-y-2">
                           <label className="text-sm font-bold text-text-main">Official Phone Number</label>
-                          <input 
-                            type="tel" 
+                          <input
+                            type="tel"
                             placeholder="e.g., +8801700000000"
                             value={formData.phone}
-                            onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                             className={`w-full px-4 py-3 rounded-lg bg-bg-input border ${errors.phone ? 'border-urgency-high' : 'border-transparent'} focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-light/20 transition-all outline-none`}
                           />
                           {errors.phone && <p className="text-xs text-urgency-high font-semibold">{errors.phone}</p>}
@@ -215,37 +245,37 @@ export default function ApplyPage() {
                       {/* Email Input */}
                       <div className="space-y-2">
                         <label className="text-sm font-bold text-text-main">Official Email Address</label>
-                        <input 
-                          type="email" 
+                        <input
+                          type="email"
                           placeholder="e.g., contact@organization.org"
                           value={formData.email}
-                          onChange={(e) => setFormData({...formData, email: e.target.value.toLowerCase()})}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value.toLowerCase() })}
                           className={`w-full px-4 py-3 rounded-lg bg-bg-input border ${errors.email ? 'border-urgency-high' : 'border-transparent'} focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-light/20 transition-all outline-none`}
                         />
                         {errors.email && <p className="text-xs text-urgency-high font-semibold">{errors.email}</p>}
                       </div>
 
                       {/* City Input */}
-<div className="space-y-2">
-  <label className="text-sm font-bold text-text-main">City</label>
-  <input 
-    type="text" 
-    placeholder="e.g., Dhaka"
-    value={formData.city}
-    onChange={(e) => setFormData({...formData, city: e.target.value})}
-    className={`w-full px-4 py-3 rounded-lg bg-bg-input border ${errors.city ? 'border-urgency-high' : 'border-transparent'} focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-light/20 transition-all outline-none`}
-  />
-  {errors.city && <p className="text-xs text-urgency-high font-semibold">{errors.city}</p>}
-</div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-text-main">City</label>
+                        <input
+                          type="text"
+                          placeholder="e.g., Dhaka"
+                          value={formData.city}
+                          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                          className={`w-full px-4 py-3 rounded-lg bg-bg-input border ${errors.city ? 'border-urgency-high' : 'border-transparent'} focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-light/20 transition-all outline-none`}
+                        />
+                        {errors.city && <p className="text-xs text-urgency-high font-semibold">{errors.city}</p>}
+                      </div>
 
                       {/* Location Input */}
                       <div className="space-y-2">
                         <label className="text-sm font-bold text-text-main">Operational Location / Address</label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           placeholder="e.g., Block B, Mirpur 10, Dhaka"
                           value={formData.location}
-                          onChange={(e) => setFormData({...formData, location: e.target.value})}
+                          onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                           className={`w-full px-4 py-3 rounded-lg bg-bg-input border ${errors.location ? 'border-urgency-high' : 'border-transparent'} focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-light/20 transition-all outline-none`}
                         />
                         {errors.location && <p className="text-xs text-urgency-high font-semibold">{errors.location}</p>}
@@ -254,23 +284,24 @@ export default function ApplyPage() {
                       {/* Reason Input */}
                       <div className="space-y-2">
                         <label className="text-sm font-bold text-text-main">Operational Motivation</label>
-                        <textarea 
+                        <textarea
                           rows={4}
                           placeholder="Please detail why you wish to join the network and how you intend to contribute..."
                           value={formData.reason}
-                          onChange={(e) => setFormData({...formData, reason: e.target.value})}
+                          onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
                           className={`w-full px-4 py-3 rounded-lg bg-bg-input border ${errors.reason ? 'border-urgency-high' : 'border-transparent'} focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-light/20 transition-all outline-none resize-none`}
                         ></textarea>
                         {errors.reason && <p className="text-xs text-urgency-high font-semibold">{errors.reason}</p>}
                       </div>
 
-                      {/* Submit Section & Strict Note */}
+                      {/* Submit Section */}
                       <div className="pt-6 border-t border-gray-100 flex flex-col items-center">
-                        <button 
+                        <button
                           type="submit"
-                          className="w-full flex items-center justify-center gap-2 px-8 py-4 bg-brand-dark hover:bg-brand-blue text-white font-bold rounded-lg transition-all shadow-md hover:shadow-lg"
+                          disabled={isSubmitting}
+                          className="w-full flex items-center justify-center gap-2 px-8 py-4 bg-brand-dark hover:bg-brand-blue text-white font-bold rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-70"
                         >
-                          Submit Application <ArrowRight className="w-5 h-5" />
+                          {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Submit Application <ArrowRight className="w-5 h-5" /></>}
                         </button>
                         <p className="text-xs text-text-secondary mt-4 flex items-center gap-1.5 font-medium">
                           <ShieldCheck className="w-4 h-4 text-brand-light" />

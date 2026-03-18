@@ -2,13 +2,25 @@
 import Link from "next/link";
 import { User, Mail, Phone, MapPin, Briefcase, MessageSquare, ChevronRight } from "lucide-react";
 
-export const ProfileWidget = ({ role, name, email, phone, location, zone }: any) => (
+// CHANGED: Added 'id' to the destructured props
+export const ProfileWidget = ({ id, role, name, email, phone, location, zone }: any) => (
   <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-start gap-4">
     <div className="w-16 h-16 bg-brand-blue/10 rounded-full flex items-center justify-center flex-shrink-0 text-brand-blue">
       <User className="w-8 h-8" />
     </div>
     <div className="flex-1">
-      <h2 className="text-xl font-bold text-brand-dark">{name}</h2>
+
+      {/* CHANGED: Conditionally wrap the name in a Link if the ID is provided */}
+      {id ? (
+        <Link href={`/profile/${id}`} className="block w-fit">
+          <h2 className="text-xl font-bold text-brand-dark hover:underline hover:text-brand-blue transition-colors">
+            {name}
+          </h2>
+        </Link>
+      ) : (
+        <h2 className="text-xl font-bold text-brand-dark">{name}</h2>
+      )}
+
       <span className="inline-block px-2.5 py-1 bg-brand-dark text-white text-xs font-bold uppercase tracking-wider rounded-md mt-1 mb-3">
         {role}
       </span>

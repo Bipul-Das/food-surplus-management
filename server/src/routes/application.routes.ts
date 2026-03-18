@@ -1,17 +1,20 @@
 // server/src/routes/application.routes.ts
 import { Router } from 'express';
-import { getPendingApplications, updateApplicationStatus } from '../controllers/application.controller';
+import { createApplication } from '../controllers/application.controller';
+
+import { getAllApplications, updateApplicationStatus } from '../controllers/application.controller';
 import { verifyToken } from '../middleware/verifyToken';
 import { roleCheck } from '../middleware/roleCheck';
 
 const router = Router();
-
-// God Mode (LEAD_DEV) and COORDINATOR share access to the review queue
+// Note: This is PUBLIC. Do NOT wrap it in verifyToken or roleCheck.
+router.post('/', createApplication);
+// FIX: Listen to the root path to match the frontend, and fetch ALL data for the tabs
 router.get(
-  '/pending', 
+  '/', 
   verifyToken, 
   roleCheck(['COORDINATOR', 'LEAD_DEV']), 
-  getPendingApplications
+  getAllApplications
 );
 
 router.patch(

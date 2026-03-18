@@ -26,6 +26,7 @@ enum RequestStatus {
   OPEN          // Actively seeking donations
   PARTIAL       // Partially fulfilled, still needs more
   FULFILLED     // Completely matched with pledges
+  EXPIRED
 }
 
 enum DeliveryStatus {

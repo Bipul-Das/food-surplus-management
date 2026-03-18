@@ -13,6 +13,7 @@ import { useUserStore } from "@/store/userStore";
 // TYPE DEFINITIONS
 // ----------------------------------------------------------------------
 interface ExtendedUser {
+  id?: string; // Add this
   name?: string;
   email?: string;
   phone?: string;
@@ -60,24 +61,25 @@ export default function ReceiverDashboard() {
   return (
     <ProtectedRoute allowedRoles={["RECEIVER", "LEAD_DEV"]}>
       <div className="min-h-screen bg-bg-page flex flex-col font-sans">
-        <PrivateNavbar />
+        {/* <PrivateNavbar /> */}
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8">
           <div className="flex gap-1 mb-8 border-b border-gray-200 overflow-x-auto">
             <Link href="/requests" className="px-6 py-3 text-sm font-bold text-text-secondary hover:text-brand-blue border-b-2 border-transparent hover:border-brand-blue whitespace-nowrap">My Requests</Link>
             <Link href="/logbook" className="px-6 py-3 text-sm font-bold text-text-secondary hover:text-brand-blue border-b-2 border-transparent hover:border-brand-blue whitespace-nowrap">My Logbooks</Link>
-            <Link href="/inventory" className="px-6 py-3 text-sm font-bold text-text-secondary hover:text-brand-blue border-b-2 border-transparent hover:border-brand-blue whitespace-nowrap">Current Inventories</Link>
+            <Link href="/inventory_all" className="px-6 py-3 text-sm font-bold text-text-secondary hover:text-brand-blue border-b-2 border-transparent hover:border-brand-blue whitespace-nowrap">All Inventories</Link>
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
             <div className="lg:col-span-2 space-y-6">
               
               {/* Dynamic Profile Injector */}
-              <ProfileWidget 
-                role={currentUser?.role?.replace('_', ' ') || "Receiver / NGO"} 
-                name={currentUser?.organization || currentUser?.name || "Partner Organization"} 
-                email={currentUser?.email || "Unknown"} 
-                phone={currentUser?.phone || "-"} 
-                location={`${currentUser?.address || ""}, ${currentUser?.city || "Unassigned"}`.replace(/^, /, '')} 
+              <ProfileWidget
+                id={currentUser?.id} // <--- ADD THIS LINE!
+                role={currentUser?.role?.replace('_', ' ') || "Receiver / NGO"}
+                name={currentUser?.organization || currentUser?.name || "Partner Organization"}
+                email={currentUser?.email || "Unknown"}
+                phone={currentUser?.phone || "-"}
+                location={`${currentUser?.address || ""}, ${currentUser?.city || "Unassigned"}`.replace(/^, /, '')}
               />
               
               {isLoading ? (
