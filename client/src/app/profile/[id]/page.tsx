@@ -2,20 +2,22 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
+import Link from "next/link";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import PrivateNavbar from "@/components/layout/PrivateNavbar";
 import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
+import { useUserStore } from "@/store/userStore";
 
 export default function PublicProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
   const profileId = unwrappedParams.id;
+  const { user: currentUser } = useUserStore();
 
   const [profile, setProfile] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLockedOut, setIsLockedOut] = useState(false);
 
-  // Independent Pagination States
   const [visibleHistory, setVisibleHistory] = useState(3);
   const [visibleRequests, setVisibleRequests] = useState(3);
   const [visibleLogbooks, setVisibleLogbooks] = useState(2);
@@ -53,7 +55,6 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
 
   if (isLoading) return <div className="min-h-screen bg-white flex flex-col font-sans"><PrivateNavbar /><div className="flex-1 flex justify-center items-center"><Loader2 className="w-10 h-10 animate-spin text-gray-900" /></div></div>;
 
-  // LOCKOUT SCREEN FOR DEV/COORDINATORS
   if (isLockedOut) return (
     <ProtectedRoute allowedRoles={["DONOR", "RECEIVER", "COORDINATOR", "LEAD_DEV", "DELIVERY_MAN"]}>
       <div className="min-h-screen bg-white flex flex-col font-sans">
@@ -90,11 +91,9 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-            {/* LEFT COLUMN: Basic Info (Span 4) */}
             <div className="lg:col-span-4 border-[1.5px] border-gray-900 p-6 flex flex-col min-h-[600px] relative bg-white">
               <h2 className="text-[32px] font-normal text-gray-900 mb-6 tracking-tight">Basic info</h2>
 
-              {/* FIX 1: Display Avatar if it exists, otherwise fall back to Initials */}
               {user.avatar ? (
                 <img
                   src={user.avatar.startsWith('http') ? user.avatar : `http://localhost:5000${user.avatar}`}
@@ -118,7 +117,6 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
               <div className="mt-auto">
                 <h3 className="text-[28px] font-normal text-gray-900 mb-4 tracking-tight">Website</h3>
 
-                {/* FIX 2: Render actual URL text and strip https:// for cleaner UI */}
                 {user.website ? (
                   <a
                     href={user.website.startsWith('http') ? user.website : `https://${user.website}`}
@@ -132,24 +130,21 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
                   <p className="text-gray-500 mb-6 text-[17px]">No website provided</p>
                 )}
 
-                {/* Dynamically hide button if it's a Delivery Man */}
-                {user.role !== 'DELIVERY_MAN' && (
-                  <button className="px-6 py-2 bg-[#a5a5a5] border-[1.5px] border-gray-900 text-gray-900 font-normal text-[18px] hover:bg-[#8e8e8e] transition-colors">
+                {currentUser?.id !== user.id && (
+                  <Link
+                    href={`/messages?contactId=${user.id}&name=${encodeURIComponent(user.organization || user.name)}&role=${user.role}`}
+                    className="px-6 py-2.5 bg-[#a5a5a5] border-[1.5px] border-gray-900 text-gray-900 font-bold uppercase tracking-widest text-[14px] hover:bg-[#8e8e8e] transition-colors inline-block text-center"
+                  >
                     message
-                  </button>
+                  </Link>
                 )}
               </div>
             </div>
 
-            {/* RIGHT COLUMN: Data Logs (Span 8) */}
             <div className="lg:col-span-8 flex flex-col gap-6">
 
-              {/* ========================================== */}
-              {/* LAYOUT A: RECEIVER                       */}
-              {/* ========================================== */}
               {user.role === 'RECEIVER' && (
                 <>
-                  {/* Receiving History */}
                   <div className="border-[1.5px] border-gray-900 bg-white flex flex-col">
                     <div className="px-4 py-2 border-b-[1.5px] border-gray-900">
                       <h3 className="text-[18px] font-normal text-gray-900">Receiving history</h3>
@@ -179,7 +174,6 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
                     </div>
                   </div>
 
-                  {/* Active Requests */}
                   <div className="border-[1.5px] border-gray-900 bg-white flex flex-col">
                     <div className="px-4 py-2 border-b-[1.5px] border-gray-900">
                       <h3 className="text-[18px] font-normal text-gray-900">active requests</h3>
@@ -213,7 +207,6 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
                     </div>
                   </div>
 
-                  {/* Logbooks */}
                   <div className="border-[1.5px] border-gray-900 bg-white flex flex-col">
                     <div className="px-4 py-2 border-b-[1.5px] border-gray-900">
                       <h3 className="text-[18px] font-normal text-gray-900">Logbooks</h3>
@@ -248,9 +241,6 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
                 </>
               )}
 
-              {/* ========================================== */}
-              {/* LAYOUT B: DELIVERY_MAN                   */}
-              {/* ========================================== */}
               {user.role === 'DELIVERY_MAN' && (
                 <div className="flex flex-col gap-6 h-full">
                   <div className="border-[1.5px] border-gray-900 bg-white flex flex-col flex-1 min-h-[350px]">
@@ -282,29 +272,20 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
                       )}
                     </div>
                   </div>
-
                   <div className="border-[1.5px] border-gray-900 bg-white p-8 flex flex-col justify-center gap-6 min-h-[250px]">
-                    <div className="border-[1.5px] border-[#6aa84f] px-6 py-4 text-[18px] font-normal text-gray-900 bg-white w-full max-w-md">
-                      Current status: active
+                    {/* NEW: Dynamic Operational Status Block */}
+                    <div className={`border-[1.5px] px-6 py-4 text-[18px] font-bold uppercase tracking-widest w-full max-w-md ${user.isActive !== false ? 'border-[#6aa84f] text-[#6aa84f]' : 'border-[#cc0000] text-[#cc0000] bg-gray-50'}`}>
+                      Current status: {user.isActive !== false ? 'Active' : 'Off-Duty'}
                     </div>
                     <div className="border-[1.5px] border-[#6aa84f] px-6 py-4 text-[18px] font-normal text-gray-900 bg-white w-full max-w-md capitalize">
                       City: {user.city}, location: {user.address}
-                    </div>
-                    <div className="mt-4 flex justify-center w-full max-w-md">
-                      <button className="px-10 py-2.5 bg-[#a5a5a5] border-[1.5px] border-gray-900 text-gray-900 font-normal text-[19px] hover:bg-[#8e8e8e] transition-colors">
-                        message
-                      </button>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* ========================================== */}
-              {/* LAYOUT C: DONOR                          */}
-              {/* ========================================== */}
               {user.role === 'DONOR' && (
                 <>
-                  {/* Donation History */}
                   <div className="border-[1.5px] border-gray-900 bg-white flex flex-col">
                     <div className="px-4 py-2 border-b-[1.5px] border-gray-900">
                       <h3 className="text-[18px] font-normal text-gray-900">Donation history</h3>
@@ -333,8 +314,6 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
                       )}
                     </div>
                   </div>
-
-                  {/* Current Surplus Inventory */}
                   <div className="border-[1.5px] border-gray-900 bg-white flex flex-col">
                     <div className="px-4 py-2 border-b-[1.5px] border-gray-900">
                       <h3 className="text-[18px] font-normal text-gray-900">Current surplus inventory</h3>
@@ -342,7 +321,6 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
                     <div className="p-4 h-[350px] overflow-y-auto bg-white custom-scrollbar">
                       {activeInventory && activeInventory.length > 0 ? (
                         <div className="space-y-3">
-                          {/* Table Header Replicating Wireframe */}
                           <div className="grid grid-cols-4 gap-4 px-4 py-3 border-[1.5px] border-[#6aa84f] text-[17px] font-normal text-gray-900 mb-4">
                             <div>food</div>
                             <div className="text-center">quantity</div>
@@ -361,7 +339,6 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
                               </div>
                             );
                           })}
-                          {/* Inline Load More Card for Donor Inventory */}
                           {visibleInventory < activeInventory.length && (
                             <div className="flex justify-center pt-2">
                               <button onClick={() => setVisibleInventory(p => p + 3)} className="w-full py-4 border-[1.5px] border-gray-900 bg-[#e6e6e6] hover:bg-[#cccccc] flex items-center justify-center text-[18px] transition-colors">

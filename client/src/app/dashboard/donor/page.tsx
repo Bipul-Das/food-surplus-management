@@ -43,7 +43,7 @@ export default function DonorDashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
   // We leave this empty until the WebSocket architecture is deployed
-  const REAL_MESSAGES: any[] = [];
+  // const REAL_MESSAGES: any[] = [];
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -211,7 +211,7 @@ export default function DonorDashboard() {
 
             {/* RIGHT COLUMN: COMMS Hub */}
             <div className="lg:col-span-4 h-[600px] lg:sticky lg:top-24">
-              <MessagesWidget messages={REAL_MESSAGES} />
+              <MessagesWidget />
             </div>
 
           </div>

@@ -2,7 +2,7 @@
 
 generator client {
   provider = "prisma-client-js"
-  previewFeatures = ["driverAdapters"] // Add this line
+  previewFeatures = ["driverAdapters"] 
 }
 
 datasource db {
@@ -20,7 +20,6 @@ enum Role {
   RECEIVER
   DELIVERY_MAN
 }
-
 
 enum RequestStatus {
   OPEN          // Actively seeking donations
@@ -61,6 +60,9 @@ model User {
   city            String
   website         String?
   avatar          String?   // URL to image
+  
+  // NEW: Operational Status Toggle for Delivery Men
+  isActive        Boolean   @default(true)
   
   // Gamification & Stats
   badges          String[]  // ["BRONZE", "SILVER"]
@@ -112,7 +114,7 @@ model FoodCategory {
   
   inventoryItems  SurplusInventory[]
   requestItems    RequestItem[]
-  pledgeItems     PledgeItem[]      // Inverse relation fixed
+  pledgeItems     PledgeItem[]      
 }
 
 model SurplusInventory {
@@ -130,8 +132,6 @@ model SurplusInventory {
   
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
-  
-  // Note: No direct link to Pledges/Allocations here to prevent Cascade Delete data loss.
 }
 
 // =======================
@@ -164,11 +164,10 @@ model RequestItem {
   categoryId      Int
   category        FoodCategory @relation(fields: [categoryId], references: [id])
   
-  initialQuantity Float        @default(0)  // <-- THIS MUST BE HERE
+  initialQuantity Float        @default(0)  
   deficit         Float
 }
 
-// The Unified Transaction Model (Replaces Allocation & Delivery)
 model Pledge {
   id              String         @id @default(uuid())
   
@@ -181,7 +180,6 @@ model Pledge {
   driverId        String
   driver          User           @relation("DriverPledges", fields: [driverId], references: [id])
   
-  // Unified Delivery Tracking
   status          DeliveryStatus @default(LOCKED)
   pickupAddress   String?        
   dropAddress     String?        
@@ -193,7 +191,6 @@ model Pledge {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
-  // STRICT RULE: A donor can only have one active pledge per specific request
   @@unique([requestId, donorId]) 
 }
 
@@ -202,7 +199,7 @@ model PledgeItem {
   pledgeId    String
   pledge      Pledge        @relation(fields: [pledgeId], references: [id], onDelete: Cascade)
   
-  categoryId  Int           // Fixed: Was String, now matches FoodCategory.id
+  categoryId  Int           
   category    FoodCategory  @relation(fields: [categoryId], references: [id])
   
   quantity    Float
@@ -224,12 +221,12 @@ model Logbook {
   lunchServed      Int?
   dinnerServed     Int?
   
-  lunchMeal        String?   // ADD THIS LINE
-  dinnerMeal       String?   // ADD THIS LINE
+  lunchMeal        String?   
+  dinnerMeal       String?   
   
   isLunchComplete  Boolean   @default(false)
   isDinnerComplete Boolean   @default(false)
-  isDinnerUnlocked Boolean @default(false)
+  isDinnerUnlocked Boolean   @default(false)
   dailyShortage    Int       @default(0)
   
   createdAt        DateTime  @default(now())

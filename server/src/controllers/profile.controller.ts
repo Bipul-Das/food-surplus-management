@@ -20,7 +20,8 @@ export const getPublicProfile = async (req: AuthRequest, res: Response, next: Ne
         email: true,
         website: true,
         avatar: true,
-        createdAt: true
+        createdAt: true,
+        isActive: true // NEW: Explicitly expose the Operational Status to the Public Profile
       }
     });
 

@@ -1,13 +1,14 @@
 // server/src/routes/message.routes.ts
 import { Router } from 'express';
-import { sendMessage, getConversationThread, markThreadAsRead } from '../controllers/message.controller';
+import { sendMessage, getConversationThread, markThreadAsRead, getInbox } from '../controllers/message.controller';
 import { verifyToken } from '../middleware/verifyToken';
 
 const router = Router();
 
-// All roles need messaging, so we only require a valid token, not a specific role check
 router.post('/', verifyToken, sendMessage);
-router.get('/:contactId', verifyToken, getConversationThread);
 router.put('/mark-read', verifyToken, markThreadAsRead);
+// CRITICAL: /inbox must be defined BEFORE /:contactId
+router.get('/inbox', verifyToken, getInbox); 
+router.get('/:contactId', verifyToken, getConversationThread);
 
 export default router;

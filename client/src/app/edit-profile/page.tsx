@@ -6,8 +6,10 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import PrivateNavbar from "@/components/layout/PrivateNavbar";
 import { Loader2, Upload } from "lucide-react";
 import toast from "react-hot-toast";
+import { useUserStore } from "@/store/userStore";
 
 export default function EditProfilePage() {
+  const { user: currentUser } = useUserStore();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -20,12 +22,11 @@ export default function EditProfilePage() {
     city: "",
     website: "",
     avatar: "",
+    isActive: true, // NEW: Initialize operational status
   });
 
-  // NEW: State to hold the physical file and its local preview
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  // NEW: Track if the image is broken
   const [imageError, setImageError] = useState(false);
 
   const [passwords, setPasswords] = useState({
@@ -53,6 +54,7 @@ export default function EditProfilePage() {
           city: data.data.city || "",
           website: data.data.website || "",
           avatar: data.data.avatar || "",
+          isActive: data.data.isActive ?? true, // Safely load boolean
         });
       } else {
         toast.error(data.message || "Failed to load profile data.");
@@ -64,12 +66,11 @@ export default function EditProfilePage() {
     }
   };
 
-  // Handle the physical file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setAvatarFile(file);
-      setPreviewUrl(URL.createObjectURL(file)); // Generate temporary local preview
+      setPreviewUrl(URL.createObjectURL(file));
       setImageError(false);
     }
   };
@@ -78,7 +79,6 @@ export default function EditProfilePage() {
     e.preventDefault();
     setIsSaving(true);
     try {
-      // IMPORTANT: When sending files, we use FormData instead of JSON
       const submitData = new FormData();
       submitData.append("name", formData.name);
       submitData.append("organization", formData.organization);
@@ -87,18 +87,19 @@ export default function EditProfilePage() {
       submitData.append("city", formData.city);
       submitData.append("website", formData.website);
 
+      // NEW: Send the boolean as a string via FormData
+      submitData.append("isActive", String(formData.isActive));
+
       if (avatarFile) {
-        submitData.append("avatarFile", avatarFile); // Send the physical file
+        submitData.append("avatarFile", avatarFile);
       } else if (formData.avatar) {
-        submitData.append("avatar", formData.avatar); // Keep the old string URL if unchanged
+        submitData.append("avatar", formData.avatar);
       }
 
       const res = await fetch("http://localhost:5000/api/edit-profile/info", {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${localStorage.getItem("token")}`
-          // CRITICAL: Do NOT set "Content-Type" here. 
-          // The browser automatically sets it to multipart/form-data with the correct boundaries!
         },
         body: submitData
       });
@@ -107,12 +108,11 @@ export default function EditProfilePage() {
 
       if (result.success) {
         toast.success("Profile information updated.");
-        // Sync the form with the newly saved URL from backend
         if (result.data.avatar) {
           setFormData(prev => ({ ...prev, avatar: result.data.avatar }));
           setAvatarFile(null);
           setPreviewUrl(null);
-          setImageError(false); // <--- ADD THIS LINE!
+          setImageError(false);
         }
       } else {
         toast.error(result.message || "Failed to update profile.");
@@ -163,7 +163,6 @@ export default function EditProfilePage() {
 
   if (isLoading) return <div className="min-h-screen bg-white flex flex-col font-sans"><PrivateNavbar /><div className="flex-1 flex justify-center items-center"><Loader2 className="w-10 h-10 animate-spin text-gray-900" /></div></div>;
 
-  // Determine which image to show in the circle
   const displayImage = previewUrl || formData.avatar;
 
   return (
@@ -184,23 +183,18 @@ export default function EditProfilePage() {
 
               <form onSubmit={handleProfileSubmit} className="space-y-5 mt-4">
 
-                {/* === NEW PHYSICAL DEVICE UPLOAD BLOCK === */}
-                {/* === NEW PHYSICAL DEVICE UPLOAD BLOCK === */}
                 <div className="flex flex-col sm:flex-row items-center gap-6 mb-6 pb-6 border-b-[1.5px] border-dashed border-gray-300">
                   <div className="w-24 h-24 bg-[#4a86e8] border-[1.5px] border-gray-900 rounded-[50%] flex flex-shrink-0 items-center justify-center text-white text-[24px] font-normal shadow-sm overflow-hidden">
-
-                    {/* FIX: Check if image exists AND hasn't errored out */}
                     {displayImage && !imageError ? (
                       <img
                         src={displayImage}
                         alt="Profile"
                         className="w-full h-full object-cover"
-                        onError={() => setImageError(true)} // Triggers fallback if image is broken
+                        onError={() => setImageError(true)}
                       />
                     ) : (
                       formData.name ? formData.name.substring(0, 3).toLowerCase() : "pic"
                     )}
-
                   </div>
                   <div className="flex flex-col gap-2 w-full items-start">
                     <label className="text-[15px] font-normal text-gray-900">Profile Picture</label>
@@ -221,8 +215,6 @@ export default function EditProfilePage() {
                     <p className="text-[13px] text-gray-500">JPG, PNG, or WebP. Max size 2MB.</p>
                   </div>
                 </div>
-                {/* ======================================== */}
-                {/* ======================================== */}
 
                 <div className="flex flex-col gap-1">
                   <label className="text-[15px] font-normal text-gray-900">Name / Contact Person</label>
@@ -253,6 +245,25 @@ export default function EditProfilePage() {
                   <label className="text-[15px] font-normal text-gray-900">Website URL (Optional)</label>
                   <input type="url" value={formData.website} onChange={(e) => setFormData({ ...formData, website: e.target.value })} className="w-full px-4 py-2.5 border-[1.5px] border-gray-900 font-normal outline-none focus:border-[#4a86e8]" />
                 </div>
+
+                {/* NEW: Operational Status Toggle for Delivery Men */}
+                {currentUser?.role === 'DELIVERY_MAN' && (
+                  <div className="flex flex-col gap-2 pt-4 border-t-[1.5px] border-dashed border-gray-300">
+                    <label className="text-[15px] font-bold text-gray-900 uppercase tracking-widest">Operational Status</label>
+                    <p className="text-[13px] text-gray-500 mb-2">Toggle off to hide your profile from new delivery assignments.</p>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.isActive}
+                        onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                        className="w-6 h-6 border-[1.5px] border-gray-900 appearance-none checked:bg-[#4a86e8] checked:border-[#4a86e8] relative transition-colors after:content-[''] after:absolute after:top-1/2 after:left-1/2 after:-translate-x-1/2 after:-translate-y-1/2 after:w-3 after:h-3 checked:after:bg-white"
+                      />
+                      <span className="text-[16px] font-medium text-gray-900">
+                        {formData.isActive ? "Currently Active (Accepting Deliveries)" : "Currently Off-Duty (Hidden)"}
+                      </span>
+                    </label>
+                  </div>
+                )}
 
                 <div className="pt-4">
                   <button type="submit" disabled={isSaving} className="w-full py-3 bg-[#6aa84f] text-white border-[1.5px] border-gray-900 font-bold text-[18px] hover:bg-[#5b9044] transition-colors flex items-center justify-center gap-2">

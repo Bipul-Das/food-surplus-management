@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import PrivateNavbar from "@/components/layout/PrivateNavbar";
-import { Loader2, AlertTriangle, X, Unlock, Clock } from "lucide-react";
+import { Loader2, Unlock, Clock } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function LogbookPage() {
@@ -13,8 +13,6 @@ export default function LogbookPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [visibleHistory, setVisibleHistory] = useState(3);
-
-  const [popupData, setPopupData] = useState<{ show: boolean, count: number }>({ show: false, count: 0 });
 
   // Real-time clock to enforce the 4PM and 1AM time gates
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -78,7 +76,7 @@ export default function LogbookPage() {
         await handleUpdate();
       }
 
-      // 2. Execute the Lock/Unlock Action (Includes Data Staleness Check backend logic)
+      // 2. Execute the Lock/Unlock Action
       const res = await fetch(`http://localhost:5000/api/logbooks/today/${todayLog.id}/action`, {
         method: "PATCH",
         headers: {
@@ -89,13 +87,13 @@ export default function LogbookPage() {
       });
       const result = await res.json();
 
-      // 3. Handle the response (Popup vs Success)
-      if (result.success === false && result.requiresUpdate) {
-        setPopupData({ show: true, count: result.unloggedCount });
-      } else if (result.success) {
+      // 3. Handle the response directly (Constraint modal removed)
+      if (result.success) {
         setTodayLog(result.data);
         if (action === 'unlock_dinner') toast.success("Dinner shift unlocked.");
         else toast.success("Shift permanently locked and finalized.");
+      } else {
+        toast.error(result.message || "Failed to execute action.");
       }
     } catch (error) {
       toast.error("Action execution halted due to sync error.");
@@ -111,19 +109,28 @@ export default function LogbookPage() {
   let canMarkDinnerDone = false;
 
   if (todayLog) {
-    const logDate = new Date(todayLog.date);
+    // 1. Establish the "Logical Shift" base date
+    const shiftBaseDate = new Date(currentTime);
+    if (shiftBaseDate.getHours() < 2) {
+      shiftBaseDate.setDate(shiftBaseDate.getDate() - 1);
+    }
+    shiftBaseDate.setHours(0, 0, 0, 0);
 
-    // Lunch Gate: 4:00 PM (16:00) on the day of the logbook
-    const lunchThreshold = new Date(logDate);
-    lunchThreshold.setHours(16, 0, 0, 0);
+    // 2. Lunch Window: 2:00 PM to 4:00 PM (14:00 to 16:00)
+    const lunchStart = new Date(shiftBaseDate);
+    lunchStart.setHours(14, 0, 0, 0);
+    const lunchEnd = new Date(shiftBaseDate);
+    lunchEnd.setHours(16, 0, 0, 0);
 
-    // Dinner Gate: 1:00 AM (01:00) on the NEXT day
-    const dinnerThreshold = new Date(logDate);
-    dinnerThreshold.setDate(dinnerThreshold.getDate() + 1);
-    dinnerThreshold.setHours(1, 0, 0, 0);
+    // 3. Dinner Window: 11:30 PM to 2:00 AM next day (23:30 to 02:00)
+    const dinnerStart = new Date(shiftBaseDate);
+    dinnerStart.setHours(23, 30, 0, 0);
+    const dinnerEnd = new Date(shiftBaseDate);
+    dinnerEnd.setDate(dinnerEnd.getDate() + 1);
+    dinnerEnd.setHours(2, 0, 0, 0);
 
-    canMarkLunchDone = currentTime >= lunchThreshold;
-    canMarkDinnerDone = currentTime >= dinnerThreshold;
+    canMarkLunchDone = currentTime >= lunchStart && currentTime < lunchEnd;
+    canMarkDinnerDone = currentTime >= dinnerStart && currentTime < dinnerEnd;
   }
 
   if (isLoading) return <div className="min-h-screen bg-white flex flex-col font-sans"><PrivateNavbar /><div className="flex-1 flex justify-center items-center"><Loader2 className="w-10 h-10 animate-spin text-gray-900" /></div></div>;
@@ -170,13 +177,12 @@ export default function LogbookPage() {
 
               {!todayLog.isLunchComplete && (
                 <div className="flex gap-4 mt-12">
-                  {/* TIME GATED LUNCH DONE BUTTON */}
                   <button
                     onClick={() => triggerAction('mark_lunch_done')}
                     disabled={isUpdating || !canMarkLunchDone}
                     className={`px-8 py-2.5 border-[1.5px] border-gray-900 font-normal flex items-center justify-center gap-2 transition-colors ${canMarkLunchDone
-                        ? 'bg-[#a5a5a5] text-gray-900 hover:bg-[#8e8e8e]'
-                        : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                      ? 'bg-[#a5a5a5] text-gray-900 hover:bg-[#8e8e8e]'
+                      : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                       }`}
                   >
                     {!canMarkLunchDone && <Clock className="w-4 h-4" />}
@@ -239,13 +245,12 @@ export default function LogbookPage() {
 
                 {todayLog.isDinnerUnlocked && !todayLog.isDinnerComplete && (
                   <div className="flex gap-4 mt-12">
-                    {/* TIME GATED DINNER DONE BUTTON */}
                     <button
                       onClick={() => triggerAction('mark_dinner_done')}
                       disabled={isUpdating || !canMarkDinnerDone}
                       className={`px-8 py-2.5 border-[1.5px] border-gray-900 font-normal flex items-center justify-center gap-2 transition-colors ${canMarkDinnerDone
-                          ? 'bg-[#a5a5a5] text-gray-900 hover:bg-[#8e8e8e]'
-                          : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        ? 'bg-[#a5a5a5] text-gray-900 hover:bg-[#8e8e8e]'
+                        : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                         }`}
                     >
                       {!canMarkDinnerDone && <Clock className="w-4 h-4" />}
@@ -319,31 +324,6 @@ export default function LogbookPage() {
             </div>
           </div>
         </main>
-
-        {/* DATA STALENESS CONSTRAINT MODAL */}
-        {popupData.show && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white border-[3px] border-[#cc0000] w-full max-w-lg p-10 relative shadow-[8px_8px_0px_0px_rgba(204,0,0,1)]">
-              <button onClick={() => setPopupData({ show: false, count: 0 })} className="absolute right-4 top-4 text-gray-900 hover:text-[#cc0000] transition-colors">
-                <X className="w-6 h-6" />
-              </button>
-
-              <div className="flex flex-col items-center text-center space-y-6">
-                <AlertTriangle className="w-16 h-16 text-[#cc0000]" />
-                <p className="text-[19px] font-normal text-gray-900 leading-relaxed">
-                  You have received donation <span className="font-bold text-[#cc0000]">{popupData.count} times</span> after the last update.
-                  You must update your logbook.
-                </p>
-                <button
-                  onClick={() => setPopupData({ show: false, count: 0 })}
-                  className="mt-4 px-10 py-3 bg-white border-[2px] border-[#cc0000] text-[#cc0000] font-bold text-[18px] hover:bg-[#fce8e6] transition-colors"
-                >
-                  Acknowledge
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </ProtectedRoute>
   );

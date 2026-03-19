@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import PrivateNavbar from "@/components/layout/PrivateNavbar";
 import { X, Search, Loader2 } from "lucide-react";
@@ -92,7 +93,8 @@ export default function RequestsPage() {
       const usersRes = await fetch("http://localhost:5000/api/users", { headers });
       const usersData = await usersRes.json();
       if (usersData.success) {
-        setDeliveryAgents(usersData.data.filter((u: any) => u.role === "DELIVERY_MAN"));
+        // FIX: Strictly filter out Delivery Men who have toggled isActive to false
+        setDeliveryAgents(usersData.data.filter((u: any) => u.role === "DELIVERY_MAN" && u.isActive !== false));
       }
     } catch (error) {
       toast.error("Failed to synchronize logistics data.");
@@ -109,7 +111,6 @@ export default function RequestsPage() {
   const handleAmountChange = (food: string, value: string, maxDeficit: number) => {
     const numValue = parseFloat(value) || 0;
     const availableInventory = aggregatedInventory[food.toLowerCase()] || 0;
-    // We perfectly keep deficit math here to prevent over-pledging
     const maxAllowed = Math.min(maxDeficit, availableInventory);
 
     if (numValue > maxAllowed) {
@@ -125,6 +126,49 @@ export default function RequestsPage() {
     const totalPledged = Object.values(pledgeAmounts).reduce((a, b) => a + b, 0);
     if (totalPledged <= 0) return toast.error("Invalid quantity.");
 
+    const batchAllocations: any[] = [];
+
+    for (const [food, amount] of Object.entries(pledgeAmounts)) {
+      let remainingAmount = amount;
+      if (remainingAmount <= 0) continue;
+
+      const availableBatches = inventory.filter((item: any) =>
+        item.category?.name.toLowerCase() === food.toLowerCase() && item.currentQuantity > 0
+      );
+
+      availableBatches.sort((a: any, b: any) => {
+        const dateA = new Date(a.expiryDate).getTime();
+        const dateB = new Date(b.expiryDate).getTime();
+        if (dateA !== dateB) return dateA - dateB;
+
+        const createA = new Date(a.createdAt || 0).getTime();
+        const createB = new Date(b.createdAt || 0).getTime();
+        if (createA !== createB) return createA - createB;
+
+        return (a.batchNumber || "").localeCompare(b.batchNumber || "", undefined, { numeric: true });
+      });
+
+      for (const batch of availableBatches) {
+        if (remainingAmount <= 0) break;
+
+        const deductQuantity = Math.min(batch.currentQuantity, remainingAmount);
+
+        batchAllocations.push({
+          inventoryId: batch.id,
+          categoryId: batch.categoryId,
+          food: food,
+          quantity: deductQuantity,
+          batchNumber: batch.batchNumber
+        });
+
+        remainingAmount -= deductQuantity;
+      }
+
+      if (remainingAmount > 0) {
+        return toast.error(`System Error: Insufficient continuous inventory to fulfill ${food}.`);
+      }
+    }
+
     setIsSubmitting(true);
     try {
       const res = await fetch(`http://localhost:5000/api/requests/${activeRequest.id}/pledge`, {
@@ -133,12 +177,16 @@ export default function RequestsPage() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${localStorage.getItem("token")}`
         },
-        body: JSON.stringify({ pledgeAmounts, driverId: selectedDriverId })
+        body: JSON.stringify({
+          pledgeAmounts,
+          batchAllocations,
+          driverId: selectedDriverId
+        })
       });
 
       const result = await res.json();
       if (result.success) {
-        toast.success("Transaction Locked.");
+        toast.success("Transaction Locked. Inventory Deducted.");
         setActiveRequest(null);
         fetchRequests();
         fetchAllocationData();
@@ -173,7 +221,6 @@ export default function RequestsPage() {
                   const completedPledges = req.pledges?.filter((p: any) => p.status === 'COMPLETED') || [];
                   const totalDemanded = req.items.reduce((sum: number, item: any) => sum + (item.initialQuantity || item.deficit || 0), 0);
 
-                  // FIX: Physical receipt logic strictly tied to COMPLETED pledges
                   const totalReceived = req.items.reduce((sum: number, item: any) => {
                     return sum + completedPledges.reduce((s: number, p: any) => {
                       const pItem = p.items?.find((pi: any) => pi.categoryId === item.categoryId);
@@ -204,7 +251,14 @@ export default function RequestsPage() {
                       </div>
 
                       <div className="w-full text-center mt-2 mb-8 border-b-2 border-transparent">
-                        <h2 className="text-[22px] font-normal text-gray-900 tracking-tight mb-1">{req.orgName}</h2>
+                        <h2 className="text-[22px] font-normal text-gray-900 tracking-tight mb-1">
+                          <Link
+                            href={`/profile/${req.userId || req.receiverId || ''}`}
+                            className="hover:text-[#4a86e8] hover:underline transition-colors block w-fit mx-auto"
+                          >
+                            {req.orgName}
+                          </Link>
+                        </h2>
                         <p className="text-[16px] font-normal text-gray-800">{req.location}</p>
                       </div>
 
@@ -212,7 +266,6 @@ export default function RequestsPage() {
                         {req.items.map((item: any, idx: number) => {
                           const demanded = item.initialQuantity || item.deficit || 0;
 
-                          // FIX: Bar updates strictly from physical receipt
                           const received = completedPledges.reduce((s: number, p: any) => {
                             const pItem = p.items?.find((pi: any) => pi.categoryId === item.categoryId);
                             return s + (pItem ? pItem.quantity : 0);
@@ -279,10 +332,10 @@ export default function RequestsPage() {
                             onClick={() => !isLockedOut && openPledgeModal(req)}
                             disabled={isLockedOut}
                             className={`px-10 py-3 border-[2.5px] font-bold text-[15px] transition-colors w-full ${isCompleted
-                                ? "bg-[#388e3c] border-[#388e3c] text-white cursor-not-allowed"
-                                : isExpired
-                                  ? "bg-gray-200 border-gray-400 text-gray-500 cursor-not-allowed"
-                                  : "bg-white border-gray-900 text-gray-900 hover:bg-gray-100 shadow-sm"
+                              ? "bg-[#388e3c] border-[#388e3c] text-white cursor-not-allowed"
+                              : isExpired
+                                ? "bg-gray-200 border-gray-400 text-gray-500 cursor-not-allowed"
+                                : "bg-white border-gray-900 text-gray-900 hover:bg-gray-100 shadow-sm"
                               }`}
                           >
                             {isCompleted ? "FULLY PLEDGED" : isExpired ? "EXPIRED" : "Pledge donation"}
@@ -378,8 +431,8 @@ export default function RequestsPage() {
                                 <button
                                   onClick={() => setSelectedDriverId(agent.id)}
                                   className={`px-6 py-1.5 border-[1.5px] font-medium transition-colors ${selectedDriverId === agent.id
-                                      ? "bg-gray-900 border-gray-900 text-white"
-                                      : "bg-gray-200 border-gray-400 text-[#cc0000] hover:bg-gray-300"
+                                    ? "bg-gray-900 border-gray-900 text-white"
+                                    : "bg-gray-200 border-gray-400 text-[#cc0000] hover:bg-gray-300"
                                     }`}
                                 >
                                   {selectedDriverId === agent.id ? "assigned" : "assign"}
@@ -394,13 +447,19 @@ export default function RequestsPage() {
                 </div>
                 <div className="w-full lg:w-[400px] flex flex-col pt-12 space-y-8">
                   <div className="text-right border-b-2 border-gray-900 pb-6 mb-8">
-                    <h2 className="text-2xl font-normal text-gray-900">{activeRequest.orgName}</h2>
+                    <h2 className="text-2xl font-normal text-gray-900">
+                      <Link
+                        href={`/profile/${activeRequest.userId || activeRequest.receiverId || ''}`}
+                        className="hover:text-[#4a86e8] hover:underline transition-colors"
+                      >
+                        {activeRequest.orgName}
+                      </Link>
+                    </h2>
                     <p className="text-[17px] font-normal text-gray-800">{activeRequest.location}</p>
                   </div>
                   <div className="space-y-6">
                     {activeRequest.items.map((item: any) => {
                       const avail = aggregatedInventory[item.food.toLowerCase()] || 0;
-                      // Input Max is correctly based on Deficit to prevent over-pledging
                       const maxAllowed = Math.min(item.deficit, avail);
                       const isZero = maxAllowed === 0;
                       return (

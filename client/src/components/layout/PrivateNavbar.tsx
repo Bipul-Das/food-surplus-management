@@ -119,7 +119,7 @@ export default function PrivateNavbar() {
       ];
     } else if (role === "LEAD_DEV") {
       config = [
-        { title: "Only Me", links: [{ name: "Public Profile", href: `/profile/${user.id}` }, { name: "Dev Dashboard", href: "/dashboard/admin" }, { name: "Edit Profile", href: "/edit-profile" }, { name: "Messages", href: "/messages" }, { name: "My Requests", href: "/my-requests" }, { name: "My Donations", href: "/donations" }, { name: "My Deliveries", href: "/my-deliveries" }] },
+        { title: "Only Me", links: [{ name: "Public Profile", href: `/profile/${user.id}` }, { name: "Dev Dashboard", href: "/dashboard/admin" }, { name: "Edit Profile", href: "/edit-profile" }, { name: "Messages", href: "/messages" }, { name: "My Requests", href: "/my-requests" }, { name: "My Donations", href: "/donations" }, { name: "My Deliveries", href: "/my-deliveries" }, { name: "My Inventory", href: "/inventory" }] },
         { title: "Global", links: [{ name: "All Inventories", href: "/inventory_all" }, { name: "All Requests", href: "/requests" }, { name: "Active Deliveries", href: "/deliveries" }, { name: "Applications", href: "/applications" }, { name: "Staff Management", href: "/staff-management" }, { name: "Request Food", href: "/request-food" }, { name: "Apply", href: "/apply" }, { name: "Logbook", href: "/logbook" }] }
       ];
     }

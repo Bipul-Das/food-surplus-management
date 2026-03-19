@@ -6,9 +6,10 @@ import { AuthRequest } from './user.controller';
 export const createPledge = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const requestId = req.params.id as string;
-    const { pledgeAmounts, driverId } = req.body; 
+    const { pledgeAmounts, batchAllocations, driverId } = req.body; 
     
-    const donorId = req.user?.id || (req.user as any)?.userId;
+    // Aggressive ID Extraction
+    const donorId = req.user?.id || (req.user as any)?.userId || (req.user as any)?._id;
     if (!donorId) return res.status(401).json({ success: false, message: "Unauthorized." });
 
     if (!driverId) {
@@ -19,10 +20,14 @@ export const createPledge = async (req: AuthRequest, res: Response, next: NextFu
 
     const driver = await (prisma as any).user.findFirst({ 
       where: { id: cleanDriverId } 
-    });
+    }).catch(() => null);
     
     if (!driver || driver.role !== 'DELIVERY_MAN') {
-      return res.status(400).json({ success: false, message: `Telemetry Error: Invalid Delivery Man.` });
+      // Fallback check just in case the ID was strictly uppercase in DB
+      const driverFallback = await (prisma as any).user.findFirst({ where: { id: String(driverId).trim() } });
+      if (!driverFallback || driverFallback.role !== 'DELIVERY_MAN') {
+        return res.status(400).json({ success: false, message: `Telemetry Error: Invalid Delivery Man.` });
+      }
     }
 
     const existingPledge = await (prisma as any).pledge.findFirst({
@@ -34,13 +39,61 @@ export const createPledge = async (req: AuthRequest, res: Response, next: NextFu
     }
 
     const transactionResult = await prisma.$transaction(async (tx) => {
+      
+      // ========================================================
+      // PHASE 1: TRIPLE-FAILSAFE BATCH DEDUCTIONS
+      // ========================================================
+      if (!batchAllocations || batchAllocations.length === 0) {
+         throw new Error("System Error: No batch allocations provided by the frontend allocator.");
+      }
+
+      for (const alloc of batchAllocations) {
+        // 1. Direct Hit Attempt
+        let batch = await tx.surplusInventory.findUnique({ where: { id: alloc.inventoryId } }).catch(() => null);
+        
+        // 2. Lowercase UUID Hit Attempt
+        if (!batch) {
+          batch = await tx.surplusInventory.findFirst({ where: { id: String(alloc.inventoryId).toLowerCase() } }).catch(() => null);
+        }
+
+        // 3. God-Tier Data-Driven Hit (Finds the batch even if the frontend ID is a complete ghost)
+        if (!batch) {
+          batch = await tx.surplusInventory.findFirst({
+            where: {
+              donorId: donorId,
+              batchNumber: alloc.batchNumber
+            }
+          });
+        }
+
+        if (!batch) throw new Error(`System Error: Batch ${alloc.batchNumber} no longer exists in the database.`);
+        if (batch.currentQuantity < alloc.quantity) {
+          throw new Error(`Transaction Denied: Batch ${alloc.batchNumber} has insufficient quantity. Expected ${alloc.quantity}, found ${batch.currentQuantity}.`);
+        }
+
+        // Deduct or Delete
+        if (batch.currentQuantity === alloc.quantity) {
+          await tx.surplusInventory.delete({ where: { id: batch.id } });
+        } else {
+          await tx.surplusInventory.update({
+            where: { id: batch.id },
+            data: { currentQuantity: batch.currentQuantity - alloc.quantity }
+          });
+        }
+      }
+
+      // ========================================================
+      // PHASE 2: UPDATE REQUEST DEFICITS & CREATE PLEDGE RECORD
+      // ========================================================
       const pledgeItemsData: any[] = [];
 
       for (const [foodName, quantity] of Object.entries(pledgeAmounts as Record<string, number>)) {
         const pledgeQty = Number(quantity);
         if (pledgeQty <= 0) continue;
 
-        const category = await tx.foodCategory.findUnique({ where: { name: foodName.toLowerCase() } });
+        const category = await tx.foodCategory.findFirst({ 
+          where: { name: { equals: foodName.toLowerCase(), mode: 'insensitive' } } 
+        });
         if (!category) throw new Error(`System Error: Category ${foodName} unrecognized.`);
 
         const requestItem = await (tx as any).requestItem.findFirst({
@@ -48,35 +101,8 @@ export const createPledge = async (req: AuthRequest, res: Response, next: NextFu
         });
         
         if (!requestItem) throw new Error(`Transaction Denied: Receiver did not request ${foodName}.`);
-        if (pledgeQty > requestItem.deficit) throw new Error(`Transaction Denied: Cannot pledge more than deficit.`);
+        if (pledgeQty > requestItem.deficit) throw new Error(`Transaction Denied: Cannot pledge more than deficit for ${foodName}.`);
 
-        const inventoryBatches = await tx.surplusInventory.findMany({
-          where: { donorId, categoryId: category.id },
-          orderBy: { expiryDate: 'asc' } 
-        });
-
-        const totalAvailable = inventoryBatches.reduce((sum, batch) => sum + batch.currentQuantity, 0);
-        if (pledgeQty > totalAvailable) {
-          throw new Error(`Transaction Denied: Insufficient inventory for ${foodName}.`);
-        }
-
-        let remainingToDeduct = pledgeQty;
-        for (const batch of inventoryBatches) {
-          if (remainingToDeduct <= 0) break;
-
-          if (batch.currentQuantity <= remainingToDeduct) {
-            await tx.surplusInventory.delete({ where: { id: batch.id } });
-            remainingToDeduct -= batch.currentQuantity;
-          } else {
-            await tx.surplusInventory.update({
-              where: { id: batch.id },
-              data: { currentQuantity: batch.currentQuantity - remainingToDeduct }
-            });
-            remainingToDeduct = 0;
-          }
-        }
-
-        // Deficit drops on pledge to prevent over-donating
         await (tx as any).requestItem.update({
           where: { id: requestItem.id },
           data: { deficit: requestItem.deficit - pledgeQty }
@@ -89,7 +115,7 @@ export const createPledge = async (req: AuthRequest, res: Response, next: NextFu
 
       const newPledge = await (tx as any).pledge.create({
         data: {
-          requestId, donorId, driverId: cleanDriverId, status: "LOCKED",
+          requestId, donorId, driverId: cleanDriverId || driverId, status: "LOCKED",
           items: { create: pledgeItemsData }
         }
       });
@@ -108,7 +134,6 @@ export const getActiveRequests = async (req: AuthRequest, res: Response, next: N
     const requests = await prisma.foodRequest.findMany({
       include: { 
         items: { include: { category: true } },
-        // NEW: We must include pledges so frontend can calculate PHYSICAL RECEIPT progress
         pledges: { include: { donor: true, driver: true, items: { include: { category: true } } } }
       },
       orderBy: { createdAt: 'desc' }
@@ -121,8 +146,6 @@ export const getActiveRequests = async (req: AuthRequest, res: Response, next: N
       let currentStatus: string = reqObj.status;
 
       if (currentStatus === 'OPEN' || currentStatus === 'PARTIAL') {
-        
-        // FULFILLED is now strictly calculated based on COMPLETED physical receipt
         const completedPledges = reqObj.pledges?.filter((p: any) => p.status === 'COMPLETED') || [];
         const isFulfilled = reqObj.items.length > 0 && reqObj.items.every((item: any) => {
           const demanded = item.initialQuantity || item.deficit || 0;
@@ -178,9 +201,9 @@ export const getActiveRequests = async (req: AuthRequest, res: Response, next: N
       requiredWithin: reqObj.requiredWithin,
       description: reqObj.description,
       status: reqObj.status,
-      pledges: reqObj.pledges, // NEW: Expose to frontend
+      pledges: reqObj.pledges,
       items: reqObj.items.map((item: any) => ({
-        categoryId: item.categoryId, // NEW: Expose for math
+        categoryId: item.categoryId, 
         food: item.category.name.charAt(0).toUpperCase() + item.category.name.slice(1),
         initialQuantity: item.initialQuantity, 
         deficit: item.deficit,
@@ -205,11 +228,13 @@ export const getCategories = async (req: Request, res: Response, next: NextFunct
 
 export const createRequest = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const receiverId = req.user?.id || (req.user as any)?.userId;
+    const receiverId = req.user?.id || (req.user as any)?.userId || (req.user as any)?._id;
     const { items, urgency, requiredWithin, description } = req.body;
 
     if (!receiverId) return res.status(401).json({ success: false, message: "Unauthorized." });
-    const receiver = await prisma.user.findUnique({ where: { id: receiverId } });
+    
+    let receiver = await prisma.user.findUnique({ where: { id: receiverId } }).catch(() => null);
+    if (!receiver) receiver = await prisma.user.findFirst({ where: { id: String(receiverId).toLowerCase() } }).catch(() => null);
     
     if (!receiver || !['RECEIVER', 'LEAD_DEV'].includes(receiver.role)) {
       return res.status(403).json({ success: false, message: "Access Denied." });

@@ -10,10 +10,6 @@ export interface AuthRequest extends Request {
   };
 }
 
-// =====================================
-// STAFF MANAGEMENT (Admin Only)
-// =====================================
-
 export const createUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password, role, name, organization, phone, address, city } = req.body;
@@ -40,7 +36,7 @@ export const createUser = async (req: Request, res: Response, next: NextFunction
       select: {
         id: true, email: true, role: true, name: true,
         organization: true, phone: true, address: true,
-        city: true, createdAt: true,
+        city: true, createdAt: true, isActive: true
       } 
     });
 
@@ -57,7 +53,7 @@ export const getAllUsers = async (req: Request, res: Response, next: NextFunctio
       select: {
         id: true, email: true, role: true, name: true,
         organization: true, phone: true, address: true, 
-        city: true, createdAt: true,
+        city: true, createdAt: true, isActive: true // NEW: Exposed for frontend filtering
       }
     });
 
@@ -70,15 +66,13 @@ export const getAllUsers = async (req: Request, res: Response, next: NextFunctio
 export const updateUserById = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const rawId = req.params.id as string;
-    // Smart ID Parser: Converts to Number if the DB uses Integers, otherwise keeps as String UUID
     const id = isNaN(Number(rawId)) ? rawId : Number(rawId);
     
-    const { email, password, role, name, organization, phone, address, city } = req.body;
+    const { email, password, role, name, organization, phone, address, city, isActive } = req.body;
     
     if (!req.user?.role) return res.status(401).json({ success: false, message: "Unauthorized access." });
     const currentUserRole = req.user.role;
 
-    // Use "as any" to satisfy TS strictness across different DB schema types
     const targetUser = await prisma.user.findUnique({ where: { id: id as any } });
     if (!targetUser) return res.status(404).json({ success: false, message: "User not found." });
 
@@ -88,6 +82,10 @@ export const updateUserById = async (req: AuthRequest, res: Response, next: Next
 
     let dataToUpdate: any = { role, name, organization, phone, address, city };
     if (email) dataToUpdate.email = email.toLowerCase();
+    
+    if (isActive !== undefined) {
+      dataToUpdate.isActive = isActive === 'true' || isActive === true;
+    }
 
     if (password) {
       const salt = await bcrypt.genSalt(10);
@@ -97,7 +95,7 @@ export const updateUserById = async (req: AuthRequest, res: Response, next: Next
     const updatedUser = await prisma.user.update({
       where: { id: id as any },
       data: dataToUpdate,
-      select: { id: true, email: true, role: true, name: true, organization: true, phone: true, address: true, city: true }
+      select: { id: true, email: true, role: true, name: true, organization: true, phone: true, address: true, city: true, isActive: true }
     });
 
     res.status(200).json({ success: true, message: "Entity updated securely.", data: updatedUser });
@@ -134,10 +132,6 @@ export const deleteUserById = async (req: AuthRequest, res: Response, next: Next
   }
 };
 
-// =====================================
-// AUTHENTICATED PROFILE (All Users)
-// =====================================
-
 export const getMe = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user?.id) return res.status(401).json({ success: false, message: "Unauthorized access. User context missing." });
@@ -150,7 +144,7 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
       select: {
         id: true, email: true, role: true, name: true, 
         organization: true, phone: true, address: true, 
-        city: true, website: true, avatar: true
+        city: true, website: true, avatar: true, isActive: true
       }
     });
 
@@ -169,15 +163,23 @@ export const updateMe = async (req: AuthRequest, res: Response, next: NextFuncti
     const rawId = req.user.id;
     const id = isNaN(Number(rawId)) ? rawId : Number(rawId);
 
-    const { name, phone, address, city, website, avatar } = req.body;
+    const { name, phone, address, city, website, avatar, isActive } = req.body;
+    
+    let parsedIsActive = undefined;
+    if (isActive !== undefined) {
+      parsedIsActive = isActive === 'true' || isActive === true;
+    }
 
     const updatedUser = await prisma.user.update({
       where: { id: id as any },
-      data: { name, phone, address, city, website, avatar },
+      data: { 
+        name, phone, address, city, website, avatar,
+        ...(parsedIsActive !== undefined && { isActive: parsedIsActive })
+      },
       select: {
         id: true, email: true, role: true, name: true, 
         organization: true, phone: true, address: true, 
-        city: true, website: true, avatar: true
+        city: true, website: true, avatar: true, isActive: true
       }
     });
 

@@ -152,7 +152,7 @@ export default function AdminDashboard() {
                     <span className="font-bold uppercase tracking-wide">Receiver View</span>
                     <span className="font-normal text-xl group-hover:translate-x-1 transition-transform">→</span>
                   </button>
-                  <button onClick={() => router.push('/dashboard/delivery')} className="flex items-center justify-between p-4 border-[1.5px] border-gray-900 bg-white hover:bg-gray-900 hover:text-white transition-colors group">
+                  <button onClick={() => router.push('/dashboard/delivery_man')} className="flex items-center justify-between p-4 border-[1.5px] border-gray-900 bg-white hover:bg-gray-900 hover:text-white transition-colors group">
                     <span className="font-bold uppercase tracking-wide">Driver View</span>
                     <span className="font-normal text-xl group-hover:translate-x-1 transition-transform">→</span>
                   </button>
