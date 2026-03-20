@@ -2,8 +2,8 @@
 import Link from "next/link";
 import PublicNavbar from "@/components/layout/PublicNavbar";
 import Footer from "@/components/layout/Footer";
-import { 
-  Target, AlertTriangle, CheckCircle, Shield, 
+import {
+  Target, AlertTriangle, CheckCircle, Shield,
   Users, Scale, Heart, ShieldCheck, ArrowRight, User
 } from "lucide-react";
 
@@ -178,12 +178,12 @@ export default function AboutPage() {
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white/10 p-8 rounded-2xl border border-white/20 backdrop-blur-sm">
               <Heart className="w-10 h-10 text-red-400 mb-6" />
               <h3 className="text-2xl font-bold mb-4">Community Impact</h3>
               <p className="text-blue-100 text-sm leading-relaxed mb-6">
-                By bridging the logistical gap, FoodSurplus actively reduces metropolitan food waste while providing critical support for community kitchens and shelters. 
+                By bridging the logistical gap, FoodSurplus actively reduces metropolitan food waste while providing critical support for community kitchens and shelters.
                 We are building a culture of responsible surplus management among local businesses.
               </p>
               <div className="pt-6 border-t border-white/20 flex justify-between items-center">
@@ -201,14 +201,29 @@ export default function AboutPage() {
               <h2 className="text-3xl font-bold text-brand-dark">Project Leadership</h2>
             </div>
             <div className="bg-gray-50 rounded-2xl p-8 md:p-12 border border-gray-200 shadow-sm flex flex-col md:flex-row items-center gap-8">
-              <div className="w-32 h-32 bg-brand-blue rounded-full flex items-center justify-center flex-shrink-0 shadow-lg">
-                <User className="w-16 h-16 text-white" />
+
+              {/* LEAD DEV FIX: Replaced placeholder blue circle and icon with bipul.jpg. 
+                  Styled as rounded-full with object-cover to look great. */}
+              <div className="w-52 h-52 rounded-full flex-shrink-0 flex items-center justify-center border-4 border-[#0a192f] bg-white p-1 shadow-xl overflow-hidden">
+                {/* LEAD DEV FIX: The container is now the circular frame.
+      - w-32 h-32 with rounded-full makes it a perfect circle.
+      - border-4 border-[#0a192f] sets the professional, dark blue outer frame.
+      - p-1 creates a sleek white inner 'matting' layer.
+      - shadow-xl adds rich depth.
+      - overflow-hidden ensures the image never spills out.
+  */}
+                <img
+                  src="/bipul.png"
+                  alt="Bipul Das"
+                  className="w-full h-full object-cover rounded-full"
+                />
               </div>
+
               <div>
                 <h3 className="text-2xl font-bold text-brand-dark mb-1">Bipul Das</h3>
                 <p className="text-brand-light font-semibold text-sm uppercase tracking-wide mb-4">Lead Developer & System Architect</p>
                 <p className="text-text-secondary leading-relaxed mb-4">
-                  Currently in the final semester of his B.Sc. in Computer Science and Engineering at Dhaka University, Bipul developed FoodSurplus to solve a critical logistical failure in modern food distribution.
+                  Currently in the final semester of his B.Sc. in Computer Science and Engineering at CUET, Bipul developed FoodSurplus to solve a critical logistical failure in modern food distribution.
                 </p>
                 <p className="text-text-secondary leading-relaxed italic border-l-4 border-brand-light pl-4">
                   "The motivation behind this platform was to engineer a highly accurate, industry-standard solution that replaces chaotic, uncoordinated food waste with a strict, accountable, and transparent digital ecosystem."

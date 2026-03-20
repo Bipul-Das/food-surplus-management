@@ -172,15 +172,33 @@ export default function ServicesPage() {
         </section>
 
         {/* 5. CTA */}
-        <section className="bg-brand-dark py-16 border-t border-brand-blue/30 text-center">
+        {/* 10. JOIN THE PLATFORM (CTA) - Redesigned for SaaS Standards */}
+        <section className="bg-gray-50 py-24 border-t border-gray-200 text-center">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-extrabold text-white mb-6">Ready to Integrate?</h2>
-            <p className="text-lg text-blue-100 mb-8">
-              Partner with our infrastructure to optimize your surplus management or secure reliable resources for your community kitchen.
+            {/* DESIGN UPGRADE: Using brand-dark for a sharp, professional header */}
+            <h2 className="text-3xl md:text-4xl font-black text-brand-dark mb-6 tracking-tight uppercase">
+              Ready to Integrate?
+            </h2>
+
+            {/* DESIGN UPGRADE: Neutral gray for description to maintain hierarchy */}
+            <p className="text-lg text-gray-600 mb-10 leading-relaxed font-medium">
+              Partner with our infrastructure to optimize your surplus management or secure
+              reliable resources for your community kitchen.
             </p>
-            <Link href="/apply" className="inline-flex justify-center items-center px-8 py-4 border border-transparent text-base font-bold rounded-lg text-brand-dark bg-white hover:bg-gray-100 transition-all shadow-md">
-              Apply for Network Access <ArrowRight className="ml-2 w-5 h-5" />
+
+            {/* DESIGN UPGRADE: Swapped to Primary Button variant with Cinematic Lift */}
+            <Link
+              href="/apply"
+              className="inline-flex justify-center items-center px-10 py-4 text-base font-bold rounded-xl text-white bg-brand-blue hover:bg-brand-light transition-all duration-300 ease-cinematic shadow-md hover:shadow-xl hover:-translate-y-1"
+            >
+              Apply for Network Access
+              <ArrowRight className="ml-2 w-5 h-5 stroke-[3px]" />
             </Link>
+
+            {/* SUBTLE DETAIL: Minimalist micro-copy for trust */}
+            <p className="mt-6 text-xs text-gray-400 font-bold uppercase tracking-[0.2em]">
+              Enterprise Integration Protocol
+            </p>
           </div>
         </section>
 

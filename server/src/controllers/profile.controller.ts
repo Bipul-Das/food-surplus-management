@@ -21,7 +21,8 @@ export const getPublicProfile = async (req: AuthRequest, res: Response, next: Ne
         website: true,
         avatar: true,
         createdAt: true,
-        isActive: true // NEW: Explicitly expose the Operational Status to the Public Profile
+        isActive: true, 
+        points: true // NEW: Explicitly expose the Points to the Public Profile
       }
     });
 

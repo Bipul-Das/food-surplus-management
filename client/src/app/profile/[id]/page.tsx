@@ -9,6 +9,18 @@ import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useUserStore } from "@/store/userStore";
 
+// ==========================================
+// GAMIFICATION: BADGE ENGINE
+// ==========================================
+const getBadgeInfo = (points: number = 0) => {
+  if (points >= 1000000) return { title: 'Diamond', bg: 'bg-[#a2c4c9]', text: 'text-gray-900' };
+  if (points >= 250000) return { title: 'Platinum', bg: 'bg-[#e6e6e6]', text: 'text-gray-900' };
+  if (points >= 100000) return { title: 'Gold', bg: 'bg-[#f1c232]', text: 'text-gray-900' };
+  if (points >= 25000) return { title: 'Silver', bg: 'bg-[#cccccc]', text: 'text-gray-900' };
+  if (points >= 5000) return { title: 'Bronze', bg: 'bg-[#b45f06]', text: 'text-white' };
+  return null; // Not enough points for a badge yet
+};
+
 export default function PublicProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
   const profileId = unwrappedParams.id;
@@ -74,6 +86,10 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
   const initials = (user.organization || user.name).substring(0, 3).toLowerCase();
   const displayRole = user.role.replace('_', ' ').toLowerCase();
 
+  // Calculate badge dynamically based on user points (default to 0 if undefined)
+  const userPoints = user.points || 0;
+  const earnedBadge = getBadgeInfo(userPoints);
+
   return (
     <ProtectedRoute allowedRoles={["DONOR", "RECEIVER", "COORDINATOR", "LEAD_DEV", "DELIVERY_MAN"]}>
       <div className="min-h-screen bg-white flex flex-col font-sans">
@@ -81,15 +97,30 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
 
         <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-8">
 
-          <div className="flex items-center gap-4 mb-6 relative">
+          {/* HEADER: Profile, Role, Badge, and Points */}
+          <div className="flex items-center gap-4 mb-6 relative h-[60px]">
             <span className="text-[20px] font-normal text-gray-900">Public profile</span>
-            <div className="absolute -top-4 left-32 bg-[#4a86e8] border-[1.5px] border-gray-900 rounded-[50%] w-[60px] h-[60px] flex flex-col items-center justify-center text-white text-[12px] font-medium leading-tight shadow-sm">
-              <span>Badge</span>
-              <span>{displayRole === 'delivery man' ? 'driver' : displayRole}</span>
+
+            {/* Role Circle */}
+            <div className="absolute top-0 left-32 bg-[#4a86e8] border-[1.5px] border-gray-900 rounded-[50%] w-[60px] h-[60px] flex flex-col items-center justify-center text-white text-[11px] font-medium leading-tight shadow-sm z-10">
+              <span>Role</span>
+              <span className="px-1 text-center truncate w-full">{displayRole === 'delivery man' ? 'driver' : displayRole}</span>
+            </div>
+
+            {/* NEW: Gamification Badge Circle (Only displays if they have enough points) */}
+            {earnedBadge && (
+              <div className={`absolute top-0 left-[200px] ${earnedBadge.bg} ${earnedBadge.text} border-[1.5px] border-gray-900 rounded-[50%] w-[60px] h-[60px] flex flex-col items-center justify-center text-[11px] font-bold leading-tight shadow-sm z-10`}>
+                <span className="uppercase tracking-wider">{earnedBadge.title}</span>
+              </div>
+            )}
+
+            {/* NEW: Points Counter */}
+            <div className="absolute top-2 right-0 border-[1.5px] border-[#6aa84f] bg-white px-5 py-2 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
+              <span className="text-[18px] font-black text-gray-900 tracking-widest">{userPoints} PTS</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-4">
 
             <div className="lg:col-span-4 border-[1.5px] border-gray-900 p-6 flex flex-col min-h-[600px] relative bg-white">
               <h2 className="text-[32px] font-normal text-gray-900 mb-6 tracking-tight">Basic info</h2>
@@ -112,6 +143,8 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
                 <li className="flex items-start gap-2"><span className="text-xl leading-none">&bull;</span> <span className="text-[17px] capitalize">{user.city || 'City unknown'}</span></li>
                 <li className="flex items-start gap-2"><span className="text-xl leading-none">&bull;</span> <span className="text-[17px]">{user.phone}</span></li>
                 <li className="flex items-start gap-2"><span className="text-xl leading-none">&bull;</span> <span className="text-[17px]">{user.email}</span></li>
+                {/* NEW: Text display of total points */}
+                <li className="flex items-start gap-2 font-bold text-[#6aa84f]"><span className="text-xl leading-none">&bull;</span> <span className="text-[17px]">Total Impact: {userPoints} Points</span></li>
               </ul>
 
               <div className="mt-auto">
@@ -273,7 +306,6 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
                     </div>
                   </div>
                   <div className="border-[1.5px] border-gray-900 bg-white p-8 flex flex-col justify-center gap-6 min-h-[250px]">
-                    {/* NEW: Dynamic Operational Status Block */}
                     <div className={`border-[1.5px] px-6 py-4 text-[18px] font-bold uppercase tracking-widest w-full max-w-md ${user.isActive !== false ? 'border-[#6aa84f] text-[#6aa84f]' : 'border-[#cc0000] text-[#cc0000] bg-gray-50'}`}>
                       Current status: {user.isActive !== false ? 'Active' : 'Off-Duty'}
                     </div>

@@ -7,6 +7,17 @@ import PrivateNavbar from "@/components/layout/PrivateNavbar";
 import { Loader2, Unlock, Clock } from "lucide-react";
 import toast from "react-hot-toast";
 
+// NEW: Helper to accurately display the "Logical Shift" date
+const formatShiftDate = (dateString: string) => {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  // If the log was created between Midnight and 2:00 AM, it technically belongs to yesterday's shift
+  if (d.getHours() < 2) {
+    d.setDate(d.getDate() - 1);
+  }
+  return d.toLocaleDateString('en-GB').replace(/\//g, '.');
+};
+
 export default function LogbookPage() {
   const [todayLog, setTodayLog] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
@@ -116,11 +127,12 @@ export default function LogbookPage() {
     }
     shiftBaseDate.setHours(0, 0, 0, 0);
 
-    // 2. Lunch Window: 2:00 PM to 4:00 PM (14:00 to 16:00)
+    // 2. Lunch Window: 2:00 PM to 2:00 AM next day (14:00 to 02:00)
     const lunchStart = new Date(shiftBaseDate);
     lunchStart.setHours(14, 0, 0, 0);
     const lunchEnd = new Date(shiftBaseDate);
-    lunchEnd.setHours(16, 0, 0, 0);
+    lunchEnd.setDate(lunchEnd.getDate() + 1);
+    lunchEnd.setHours(2, 0, 0, 0);
 
     // 3. Dinner Window: 11:30 PM to 2:00 AM next day (23:30 to 02:00)
     const dinnerStart = new Date(shiftBaseDate);
@@ -150,7 +162,7 @@ export default function LogbookPage() {
             {/* LUNCH COLUMN */}
             <div className="border-r-0 lg:border-r-[1.5px] border-[#4a86e8] pr-0 lg:pr-8">
               <div className="border-[1.5px] border-gray-900 bg-white p-3 mb-6">
-                <p className="text-[16px] font-normal text-gray-900">Today {new Date(todayLog.date).toLocaleDateString('en-GB').replace(/\//g, '.')}</p>
+                <p className="text-[16px] font-normal text-gray-900">Today {formatShiftDate(todayLog.date)}</p>
                 <p className="text-[16px] font-normal text-gray-900">lunch</p>
               </div>
 
@@ -180,13 +192,13 @@ export default function LogbookPage() {
                   <button
                     onClick={() => triggerAction('mark_lunch_done')}
                     disabled={isUpdating || !canMarkLunchDone}
-                    className={`px-8 py-2.5 border-[1.5px] border-gray-900 font-normal flex items-center justify-center gap-2 transition-colors ${canMarkLunchDone
+                    className={`px-4 py-2.5 border-[1.5px] border-gray-900 font-normal flex items-center justify-center gap-2 transition-colors ${canMarkLunchDone
                       ? 'bg-[#a5a5a5] text-gray-900 hover:bg-[#8e8e8e]'
                       : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                       }`}
                   >
                     {!canMarkLunchDone && <Clock className="w-4 h-4" />}
-                    {canMarkLunchDone ? "Done" : "Unlocks at 4:00 PM"}
+                    {canMarkLunchDone ? "Done" : "Window: 2:00 PM - 02:00 AM"}
                   </button>
 
                   <button onClick={(e) => handleUpdate(e)} disabled={isUpdating} className="px-8 py-2.5 bg-[#a5a5a5] border-[1.5px] border-gray-900 text-gray-900 font-normal hover:bg-[#8e8e8e]">
@@ -218,7 +230,7 @@ export default function LogbookPage() {
 
               <div className={`transition-opacity duration-300 ${!todayLog.isDinnerUnlocked ? 'opacity-30' : 'opacity-100'}`}>
                 <div className="border-[1.5px] border-gray-900 bg-white p-3 mb-6">
-                  <p className="text-[16px] font-normal text-gray-900">Today {new Date(todayLog.date).toLocaleDateString('en-GB').replace(/\//g, '.')}</p>
+                  <p className="text-[16px] font-normal text-gray-900">Today {formatShiftDate(todayLog.date)}</p>
                   <p className="text-[16px] font-normal text-gray-900">dinner</p>
                 </div>
 
@@ -248,13 +260,13 @@ export default function LogbookPage() {
                     <button
                       onClick={() => triggerAction('mark_dinner_done')}
                       disabled={isUpdating || !canMarkDinnerDone}
-                      className={`px-8 py-2.5 border-[1.5px] border-gray-900 font-normal flex items-center justify-center gap-2 transition-colors ${canMarkDinnerDone
+                      className={`px-4 py-2.5 border-[1.5px] border-gray-900 font-normal flex items-center justify-center gap-2 transition-colors ${canMarkDinnerDone
                         ? 'bg-[#a5a5a5] text-gray-900 hover:bg-[#8e8e8e]'
                         : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                         }`}
                     >
                       {!canMarkDinnerDone && <Clock className="w-4 h-4" />}
-                      {canMarkDinnerDone ? "Done" : "Unlocks at 1:00 AM"}
+                      {canMarkDinnerDone ? "Done" : "Window: 11:30 PM - 2:00 AM"}
                     </button>
 
                     <button onClick={(e) => handleUpdate(e)} disabled={isUpdating} className="px-8 py-2.5 bg-[#a5a5a5] border-[1.5px] border-gray-900 text-gray-900 font-normal hover:bg-[#8e8e8e]">
@@ -277,7 +289,7 @@ export default function LogbookPage() {
                 {history.slice(0, visibleHistory).map((log) => (
                   <div key={log.id} className="border-[1.5px] border-gray-900 bg-[#e6e6e6] p-4 flex flex-col space-y-4">
                     <div className="border-[1.5px] border-gray-900 bg-white p-2">
-                      Date {new Date(log.date).toLocaleDateString('en-GB').replace(/\//g, '.')}
+                      Date {formatShiftDate(log.date)}
                     </div>
 
                     <div className="border-[1.5px] border-gray-900 bg-white p-3 space-y-1 min-h-[100px]">

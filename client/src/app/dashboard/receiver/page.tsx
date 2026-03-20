@@ -68,8 +68,10 @@ export default function ReceiverDashboard() {
 
   return (
     <ProtectedRoute allowedRoles={["RECEIVER", "LEAD_DEV"]}>
+      {/* LEAD DEV FIX: Restored the layout wrappers and PrivateNavbar since layout.tsx was deleted */}
       <div className="min-h-screen bg-white flex flex-col font-sans">
-        {/* <PrivateNavbar /> */}
+
+        <PrivateNavbar />
 
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8">
 

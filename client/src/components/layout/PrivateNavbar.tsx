@@ -7,6 +7,7 @@ import { useUserStore } from "@/store/userStore";
 import { useMessageStore } from "@/store/messageStore";
 import { LogOut, User as UserIcon, Menu, X, ShieldAlert, ChevronDown, ChevronRight, Home } from "lucide-react";
 import { useState, useEffect } from "react";
+import Logo from "@/components/common/Logo"; // NEW: Import centralized Logo
 
 // ----------------------------------------------------------------------
 // TYPES & DATA DICTIONARIES
@@ -46,6 +47,9 @@ export default function PrivateNavbar() {
   }, [pathname]);
 
   if (!user) return null;
+
+  // Generate fallback initials if no avatar exists
+  const initials = user.name ? user.name.substring(0, 2).toUpperCase() : "US";
 
   // ----------------------------------------------------------------------
   // TOP NAVBAR LOGIC (Original Horizontal Tabs)
@@ -159,10 +163,8 @@ export default function PrivateNavbar() {
                 <Menu size={28} />
               </button>
 
-              {/* BRAND */}
-              <Link href="/" className="font-bold text-[22px] text-gray-900 tracking-tight">
-                Food<span className="text-[#4a86e8]">Surplus</span>
-              </Link>
+              {/* UPGRADED: Centralized Logo Component */}
+              <Logo iconSize="md" />
 
               {/* ORIGINAL DESKTOP NAVIGATION TABS */}
               <div className="hidden lg:flex md:space-x-6 ml-4">
@@ -173,8 +175,8 @@ export default function PrivateNavbar() {
                       key={link.href}
                       href={link.href}
                       className={`inline-flex items-center px-1 pt-1 text-sm font-medium transition-colors duration-200 ${isActive
-                          ? "border-b-2 border-[#4a86e8] text-[#4a86e8]"
-                          : "border-b-2 border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-300"
+                        ? "border-b-2 border-[#4a86e8] text-[#4a86e8]"
+                        : "border-b-2 border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-300"
                         }`}
                     >
                       {link.name}
@@ -200,8 +202,20 @@ export default function PrivateNavbar() {
                     {user.role === "LEAD_DEV" ? "DEV MODE" : user.role.replace('_', ' ')}
                   </span>
                 </div>
-                <div className="h-8 w-8 rounded-[50%] bg-[#4a86e8] border-[1.5px] border-gray-900 text-white flex items-center justify-center">
-                  {user.role === "LEAD_DEV" ? <ShieldAlert size={16} /> : <UserIcon size={16} />}
+
+                {/* UPGRADED AVATAR DISPLAY */}
+                <div className="h-8 w-8 rounded-[50%] bg-[#4a86e8] border-[1.5px] border-gray-900 flex items-center justify-center overflow-hidden">
+                  {user.avatar ? (
+                    <img
+                      src={user.avatar.startsWith('http') ? user.avatar : `http://localhost:5000${user.avatar}`}
+                      alt="Avatar"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : user.role === "LEAD_DEV" ? (
+                    <ShieldAlert size={16} className="text-white" />
+                  ) : (
+                    <span className="text-[12px] font-bold text-white">{initials}</span>
+                  )}
                 </div>
               </div>
 
@@ -238,8 +252,8 @@ export default function PrivateNavbar() {
                     href={link.href}
                     onClick={() => setIsMobileMenuOpen(false)}
                     className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${isActive
-                        ? "bg-blue-50 border-[#4a86e8] text-[#4a86e8]"
-                        : "border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900"
+                      ? "bg-blue-50 border-[#4a86e8] text-[#4a86e8]"
+                      : "border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900"
                       }`}
                   >
                     {link.name}

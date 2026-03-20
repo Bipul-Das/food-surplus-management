@@ -208,7 +208,11 @@ export default function RequestsPage() {
 
   return (
     <ProtectedRoute allowedRoles={["DONOR", "RECEIVER", "COORDINATOR", "LEAD_DEV", "DELIVERY_MAN"]}>
+      {/* LEAD DEV FIX: Restored the layout wrappers and PrivateNavbar since layout.tsx was deleted */}
       <div className="min-h-screen bg-white flex flex-col font-sans">
+
+        <PrivateNavbar />
+
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-12">
 
           {isLoading ? (

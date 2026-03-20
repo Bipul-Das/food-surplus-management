@@ -65,6 +65,7 @@ model User {
   isActive        Boolean   @default(true)
   
   // Gamification & Stats
+  points          Int       @default(0) // NEW: Core Gamification Economy
   badges          String[]  // ["BRONZE", "SILVER"]
   totalWeight     Float     @default(0) // kg
   totalVolume     Float     @default(0) // liters

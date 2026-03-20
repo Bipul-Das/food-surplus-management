@@ -2,11 +2,16 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
-interface User {
+// UPGRADED: Added the new profile and gamification properties!
+export interface User {
   id: string;
   role: string;
   name: string;
   email: string;
+  organization?: string | null;
+  avatar?: string | null;
+  isActive?: boolean;
+  points?: number;
 }
 
 interface UserState {

@@ -54,7 +54,7 @@ export default function AdminDashboard() {
   return (
     <ProtectedRoute allowedRoles={["LEAD_DEV"]}>
       <div className="min-h-screen bg-white flex flex-col font-sans">
-        {/* <PrivateNavbar /> */}
+        <PrivateNavbar />
 
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8">
 
@@ -190,7 +190,7 @@ export default function AdminDashboard() {
                     <span className="font-bold">Terminal ID</span>
                     <span className="font-mono text-xs">{user?.id?.substring(0, 8)}...</span>
                   </div>
-                  
+
                 </div>
               </div>
 

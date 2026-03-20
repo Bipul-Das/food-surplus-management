@@ -87,15 +87,33 @@ export const handleLogbookAction = async (req: AuthRequest, res: Response, next:
       return res.status(200).json({ success: true, data: updated });
     }
 
-    // ACTION 2 & 3: Mark a meal as done (Staleness Constraint Removed)
+    // ACTION 2 & 3: Mark a meal as done and distribute Gamification Points!
     if (action === 'mark_lunch_done' || action === 'mark_dinner_done') {
+      const isLunch = action === 'mark_lunch_done';
       
-      const updateData = action === 'mark_lunch_done' 
-        ? { isLunchComplete: true } 
-        : { isDinnerComplete: true };
+      // ==========================================
+      // CORE GAMIFICATION: RECEIVER POINTS
+      // 1 Person Fed = 5 Points
+      // ==========================================
+      const servedCount = isLunch ? (logbook.lunchServed || 0) : (logbook.dinnerServed || 0);
+      const pointsEarned = servedCount * 5;
 
-      const updated = await prisma.logbook.update({ where: { id }, data: updateData });
-      return res.status(200).json({ success: true, data: updated });
+      const updateData = isLunch ? { isLunchComplete: true } : { isDinnerComplete: true };
+
+      // Atomic Transaction: Lock the logbook AND award points simultaneously to ensure no data mismatches
+      const [updatedLogbook] = await prisma.$transaction([
+        prisma.logbook.update({ where: { id }, data: updateData }),
+        prisma.user.update({
+          where: { id: logbook.receiverId },
+          data: { points: { increment: pointsEarned } }
+        })
+      ]);
+
+      return res.status(200).json({ 
+        success: true, 
+        data: updatedLogbook,
+        message: `Shift locked! You earned ${pointsEarned} points for feeding ${servedCount} people.`
+      });
     }
 
     throw new Error("Invalid action.");

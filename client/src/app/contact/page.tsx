@@ -4,14 +4,15 @@
 import { useState } from "react";
 import PublicNavbar from "@/components/layout/PublicNavbar";
 import Footer from "@/components/layout/Footer";
-import { 
-  MapPin, Mail, Clock, ShieldCheck, 
-  Send, Building2, User, AtSign, 
+import {
+  MapPin, Mail, Clock, ShieldCheck,
+  Send, Building2, User, AtSign,
   MessageSquare, CheckCircle2, Globe
 } from "lucide-react";
 
 export default function ContactPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [category, setCategory] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +41,7 @@ export default function ContactPage() {
         <section className="py-20 bg-white relative">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
-              
+
               {/* Left Column: Official Info & Trust Signals */}
               <div className="lg:col-span-2 space-y-8">
                 <div>
@@ -95,7 +96,7 @@ export default function ContactPage() {
               {/* Right Column: Secure Form */}
               <div className="lg:col-span-3">
                 <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-xl relative overflow-hidden">
-                  
+
                   {/* Decorative background element */}
                   <div className="absolute top-0 right-0 w-32 h-32 bg-brand-blue/5 rounded-bl-[100px] pointer-events-none"></div>
 
@@ -108,7 +109,7 @@ export default function ContactPage() {
                       <p className="text-text-secondary max-w-md mx-auto mb-8">
                         Your message has been successfully logged and routed to the appropriate platform administrators. You will receive a response shortly.
                       </p>
-                      <button 
+                      <button
                         onClick={() => setIsSubmitted(false)}
                         className="text-brand-blue font-bold hover:text-brand-dark transition-colors"
                       >
@@ -129,21 +130,21 @@ export default function ContactPage() {
                             <label className="text-sm font-semibold text-brand-dark flex items-center gap-2">
                               <User className="w-4 h-4 text-text-secondary" /> Full Name
                             </label>
-                            <input 
+                            <input
                               required
-                              type="text" 
+                              type="text"
                               placeholder="Jane Doe"
                               className="w-full px-4 py-3 rounded-lg bg-bg-input border border-transparent focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-light/20 transition-all outline-none"
                             />
                           </div>
-                          
+
                           {/* Organization */}
                           <div className="space-y-2">
                             <label className="text-sm font-semibold text-brand-dark flex items-center gap-2">
                               <Building2 className="w-4 h-4 text-text-secondary" /> Organization <span className="text-xs font-normal text-gray-400">(Optional)</span>
                             </label>
-                            <input 
-                              type="text" 
+                            <input
+                              type="text"
                               placeholder="Entity Name"
                               className="w-full px-4 py-3 rounded-lg bg-bg-input border border-transparent focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-light/20 transition-all outline-none"
                             />
@@ -155,9 +156,9 @@ export default function ContactPage() {
                           <label className="text-sm font-semibold text-brand-dark flex items-center gap-2">
                             <AtSign className="w-4 h-4 text-text-secondary" /> Official Email Address
                           </label>
-                          <input 
+                          <input
                             required
-                            type="email" 
+                            type="email"
                             placeholder="contact@organization.com"
                             className="w-full px-4 py-3 rounded-lg bg-bg-input border border-transparent focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-light/20 transition-all outline-none"
                           />
@@ -168,11 +169,13 @@ export default function ContactPage() {
                           <label className="text-sm font-semibold text-brand-dark flex items-center gap-2">
                             <MapPin className="w-4 h-4 text-text-secondary" /> Routing Subject
                           </label>
-                          <select 
+                          <select
                             required
+                            value={category}
+                            onChange={(e) => setCategory(e.target.value)}
                             className="w-full px-4 py-3 rounded-lg bg-bg-input border border-transparent focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-light/20 transition-all outline-none text-brand-dark"
                           >
-                            <option value="" disabled selected>Select communication category...</option>
+                            <option value="" disabled>Select communication category...</option>
                             <option value="partnership">Partnership & Integration Inquiry</option>
                             <option value="onboarding">Contributor Onboarding Support</option>
                             <option value="technical">Technical Issue / Bug Report</option>
@@ -186,7 +189,7 @@ export default function ContactPage() {
                           <label className="text-sm font-semibold text-brand-dark flex items-center gap-2">
                             <MessageSquare className="w-4 h-4 text-text-secondary" /> Secure Message
                           </label>
-                          <textarea 
+                          <textarea
                             required
                             rows={5}
                             placeholder="Please detail your inquiry here..."
@@ -199,7 +202,7 @@ export default function ContactPage() {
                           <p className="text-xs text-text-secondary max-w-sm leading-relaxed">
                             By submitting this form, you acknowledge that your data will be securely processed and reviewed strictly for platform coordination purposes.
                           </p>
-                          <button 
+                          <button
                             type="submit"
                             className="w-full md:w-auto flex items-center justify-center gap-2 px-8 py-3.5 bg-brand-dark hover:bg-brand-blue text-white font-bold rounded-lg transition-all shadow-md hover:shadow-lg"
                           >

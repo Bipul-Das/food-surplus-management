@@ -62,8 +62,6 @@ export const getReceiverStats = async (req: AuthRequest, res: Response, next: Ne
   }
 };
 
-// Add these to the bottom of server/src/controllers/receiver.controller.ts
-
 export const getMyRequests = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const receiverId = req.user?.id || (req.user as any)?.userId;
@@ -100,6 +98,36 @@ export const getMyRequests = async (req: AuthRequest, res: Response, next: NextF
   }
 };
 
+// ========================================================
+// THE GAMIFICATION NUTRITIONAL POINT MATRIX
+// ========================================================
+const getPointsMultiplier = (foodName: string): number => {
+  const name = foodName.trim().toLowerCase();
+  switch (name) {
+    // Tier 1: High-Density Proteins
+    case 'mutton': return 35;
+    case 'beef': return 30;
+    case 'fish': return 25;
+    case 'chicken': return 20;
+    
+    // Tier 2: Dairy & Fats
+    case 'milk': return 15;
+    case 'cooking oil': return 12;
+    
+    // Tier 3: Complex Carbs & Staples
+    case 'rice': return 10;
+    case 'canned beans': return 6;
+    
+    // Tier 4: Produce & Quick Carbs
+    case 'fruits': return 8;
+    case 'vegetables': return 5;
+    case 'bread': return 5;
+    
+    // Fallback for unknown categories
+    default: return 5; 
+  }
+};
+
 export const updatePledgeStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { pledgeId } = req.params;
@@ -108,20 +136,22 @@ export const updatePledgeStatus = async (req: AuthRequest, res: Response, next: 
 
     const pledge = await (prisma as any).pledge.findUnique({
       where: { id: pledgeId },
-      include: { request: true, items: true }
+      include: { request: true, items: { include: { category: true } } } // NEW: Include category for Gamification Math
     });
 
     if (!pledge) throw new Error("Logistics record not found.");
     if (pledge.request.receiverId !== receiverId) throw new Error("Security clearance denied.");
     if (pledge.status !== 'LOCKED') throw new Error(`Logistics already marked as ${pledge.status}.`);
 
-    // Update this section in server/src/controllers/receiver.controller.ts
-
-// ACID Transaction for safe state updates
+    // ACID Transaction for safe state updates
     await prisma.$transaction(async (tx) => {
-      // CHANGED: Now listening for 'COMPLETED' to trigger the deficit deduction
+      
+      let transactionPoints = 0;
+
       if (status === 'COMPLETED') {
         for (const pItem of pledge.items) {
+          
+          // 1. Core Logistics: Update Deficits
           const reqItem = await (tx as any).requestItem.findFirst({
             where: { requestId: pledge.requestId, categoryId: pItem.categoryId }
           });
@@ -132,6 +162,23 @@ export const updatePledgeStatus = async (req: AuthRequest, res: Response, next: 
               data: { deficit: newDeficit }
             });
           }
+
+          // 2. Core Gamification: Calculate Points based on Nutritional Matrix
+          const multiplier = getPointsMultiplier(pItem.category.name);
+          transactionPoints += Math.round(pItem.quantity * multiplier);
+        }
+
+        // 3. Inject points into Donor & Driver accounts
+        if (transactionPoints > 0) {
+          await tx.user.update({
+            where: { id: pledge.donorId },
+            data: { points: { increment: transactionPoints } }
+          });
+          
+          await tx.user.update({
+            where: { id: pledge.driverId },
+            data: { points: { increment: transactionPoints } }
+          });
         }
       }
 
@@ -142,7 +189,7 @@ export const updatePledgeStatus = async (req: AuthRequest, res: Response, next: 
       });
     });
 
-    res.status(200).json({ success: true, message: `Logistics status updated to ${status}` });
+    res.status(200).json({ success: true, message: `Logistics status updated to ${status}. Points distributed.` });
   } catch (error) {
     next(error);
   }

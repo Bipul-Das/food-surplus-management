@@ -1,69 +1,75 @@
+/* client/src/app/globals.css */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap');
+
 @import "tailwindcss";
 
-/* 1. Tailwind v4 Theme Configuration */
+/* TAILWIND v4 THEME CONFIGURATION 
+  This replaces the old tailwind.config.ts file entirely.
+*/
 @theme {
-  /* Primary Colors */
-  --color-brand-blue: #1e3a8a;
-  --color-brand-light: #3b82f6;
-  --color-brand-dark: #172554;
+  --font-sans: "Roboto", sans-serif;
 
-  /* Urgency Scale */
-  --color-urgency-low: #10b981;
-  --color-urgency-medium: #f59e0b;
-  --color-urgency-high: #ef4444;
+  /* The Enterprise Color Palette */
+  --color-brand-blue: #4a86e8;
+  --color-brand-green: #6aa84f;
+  --color-brand-dark: #0a192f;
+  --color-brand-light: #7ba7f0;
 
-  /* Text & Backgrounds */
-  --color-text-main: #374151;
-  --color-text-secondary: #6b7280;
-  --color-bg-page: #f8fafc;
-  --color-bg-card: #ffffff;
-  --color-bg-input: #f3f4f6;
+  --color-semantic-warning: #f59e0b;
+  --color-semantic-danger: #ef4444;
+  --color-semantic-success: #10b981;
 
-  /* Shadows */
-  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --color-surface-background: #f8fafc;
+  --color-surface-card: #ffffff;
 
-  /* Animations */
-  --animate-fade-in: fadeIn 0.3s ease-in-out;
+  /* Cinematic Shadows */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+  --shadow-cinematic: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
+
+  /* Smooth Animations */
+  --ease-cinematic: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Custom Keyframes */
-@keyframes fadeIn {
-  0% {
-    opacity: 0;
+@layer base {
+  body {
+    /* The unknown utility class error is now resolved! */
+    @apply bg-surface-background text-brand-dark font-sans antialiased;
   }
 
-  100% {
-    opacity: 1;
+  ::selection {
+    @apply bg-brand-blue text-white;
   }
 }
 
-/* 2. Base HTML styling */
-:root {
-  --foreground-rgb: 55, 65, 81;
-  --background-rgb: 248, 250, 252;
+@layer components {
+
+  /* THE CINEMATIC HOVER CLASS */
+  .cinematic-hover {
+    @apply transition-all duration-300 ease-cinematic hover:-translate-y-1 hover:shadow-lg;
+  }
+
+  /* SPACIOUS CARD CLASS */
+  .saas-card {
+    @apply bg-surface-card rounded-xl shadow-sm border border-gray-100 p-8;
+  }
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
-  font-family: var(--font-inter), sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Custom Scrollbar */
+/* Custom Scrollbar for a premium feel */
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: #f8fafc;
 }
 
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
-  border-radius: 4px;
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {

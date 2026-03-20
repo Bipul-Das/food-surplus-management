@@ -8,54 +8,43 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      // 1. TYPOGRAPHY: Enforcing Roboto
+      fontFamily: {
+        sans: ['var(--font-roboto)', 'sans-serif'],
+      },
+      // 2. THE ENTERPRISE COLOR PALETTE
       colors: {
-        // Primary: Corporate Navy Blue (Your Choice)
         brand: {
-          blue: "#1E3A8A", // Deep Navy
-          light: "#3B82F6", // Lighter accent for hovers
-          dark: "#172554",  // Almost black blue for text
+          blue: "#4a86e8",   // Primary actions & highlights
+          green: "#6aa84f",  // Success & Brand marks
+          dark: "#0a192f",   // Typography & deeply contrasted elements
+          light: "#7ba7f0",  // Hover states for blue
         },
-        // Urgency Scale
-        urgency: {
-          low: "#10B981",    // Green (Safe)
-          medium: "#F59E0B", // Yellow (Warning)
-          high: "#EF4444",   // Red (Critical)
+        semantic: {
+          warning: "#f59e0b", // Amber: Pending, Awaiting
+          danger: "#ef4444",  // Soft Red: Errors, Deletions, Expirations
+          success: "#10b981", // Emerald: Completed, Verified
         },
-        // Text Colors
-        text: {
-          main: "#374151",      // Dark Gray (Your Choice)
-          secondary: "#6B7280", // Muted Gray
-        },
-        // Backgrounds
-        bg: {
-          page: "#F8FAFC",  // Soft Slate Gray (Not Pure White)
-          card: "#FFFFFF",  // Pure White for cards
-          input: "#F3F4F6", // Filled Gray for inputs (Google Style)
+        surface: {
+          background: "#f8fafc", // High-contrast clean SaaS background
+          card: "#ffffff",       // Pure white for spacious data cards
         }
       },
-      fontFamily: {
-        sans: ["var(--font-inter)", "sans-serif"], // Inter Font
-      },
+      // 3. CINEMATIC SHADOWS: Replacing the brutalist blocks with smooth, diffused depth
       boxShadow: {
-        // Floating Effect (Your Choice)
-        card: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-        hover: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+        'sm': '0 2px 4px rgba(0,0,0,0.02)',
+        'md': '0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -1px rgba(0, 0, 0, 0.02)',
+        'lg': '0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02)',
+        'xl': '0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02)',
+        'cinematic': '0 25px 50px -12px rgba(0, 0, 0, 0.08)', // For modals and heavy lifts
       },
-      animation: {
-        // Custom Animations
-        "fade-in": "fadeIn 0.3s ease-in-out",
-        "slide-up": "slideUp 0.4s ease-out",
+      // 4. SMOOTH ANIMATIONS: 300ms ease-in-out global standard
+      transitionDuration: {
+        '300': '300ms',
       },
-      keyframes: {
-        fadeIn: {
-          "0%": { opacity: "0" },
-          "100%": { opacity: "1" },
-        },
-        slideUp: {
-          "0%": { transform: "translateY(10px)", opacity: "0" },
-          "100%": { transform: "translateY(0)", opacity: "1" },
-        },
-      },
+      transitionTimingFunction: {
+        'cinematic': 'cubic-bezier(0.4, 0, 0.2, 1)', // Smooth ease-in-out
+      }
     },
   },
   plugins: [],

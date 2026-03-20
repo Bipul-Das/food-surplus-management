@@ -1,5 +1,4 @@
 // client/src/components/layout/PublicNavbar.tsx
-
 "use client";
 
 import Link from "next/link";
@@ -7,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Menu, X, User as UserIcon, ShieldAlert, LogOut } from "lucide-react";
 import { useState } from "react";
 import { useUserStore } from "@/store/userStore";
+import Logo from "@/components/common/Logo"; // NEW: Import centralized Logo
 
 export default function PublicNavbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -42,6 +42,9 @@ export default function PublicNavbar() {
     { name: "Contribute", href: "/contribute" },
   ];
 
+  // Safe fallback initials if the user exists but hasn't uploaded a picture
+  const initials = user?.name ? user.name.substring(0, 2).toUpperCase() : "US";
+
   return (
     <nav className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -49,14 +52,8 @@ export default function PublicNavbar() {
 
           {/* 1. Logo Section */}
           <div className="flex items-center">
-            <Link href="/" className="flex-shrink-0 flex items-center gap-2">
-              <div className="w-8 h-8 bg-brand-blue rounded-lg flex items-center justify-center text-white font-bold">
-                F
-              </div>
-              <span className="font-bold text-xl tracking-tight text-brand-dark">
-                Food<span className="text-brand-blue">Surplus</span>
-              </span>
-            </Link>
+            {/* UPGRADED: Centralized Logo Component */}
+            <Logo iconSize="md" />
           </div>
 
           {/* 2. Desktop Navigation */}
@@ -68,8 +65,8 @@ export default function PublicNavbar() {
                   key={link.name}
                   href={link.href}
                   className={`text-sm font-medium transition-colors duration-200 ${isActive
-                      ? "text-brand-blue font-semibold"
-                      : "text-gray-600 hover:text-brand-blue"
+                    ? "text-brand-blue font-semibold"
+                    : "text-gray-600 hover:text-brand-blue"
                     }`}
                 >
                   {link.name}
@@ -90,8 +87,20 @@ export default function PublicNavbar() {
                       {user.role === "LEAD_DEV" ? "DEV MODE" : user.role.replace('_', ' ')}
                     </span>
                   </div>
-                  <div className="h-8 w-8 rounded-[50%] bg-[#4a86e8] border-[1.5px] border-gray-900 text-white flex items-center justify-center">
-                    {user.role === "LEAD_DEV" ? <ShieldAlert size={16} /> : <UserIcon size={16} />}
+
+                  {/* UPGRADED AVATAR DISPLAY */}
+                  <div className="h-8 w-8 rounded-[50%] bg-[#4a86e8] border-[1.5px] border-gray-900 flex items-center justify-center overflow-hidden shrink-0">
+                    {user.avatar ? (
+                      <img
+                        src={user.avatar.startsWith('http') ? user.avatar : `http://localhost:5000${user.avatar}`}
+                        alt="Avatar"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : user.role === "LEAD_DEV" ? (
+                      <ShieldAlert size={16} className="text-white" />
+                    ) : (
+                      <span className="text-[12px] font-bold text-white">{initials}</span>
+                    )}
                   </div>
                 </Link>
 
@@ -145,8 +154,8 @@ export default function PublicNavbar() {
                 href={link.href}
                 onClick={() => setIsOpen(false)}
                 className={`block px-3 py-2 rounded-md text-base font-medium ${pathname === link.href
-                    ? "text-brand-blue bg-blue-50"
-                    : "text-gray-600 hover:text-brand-blue hover:bg-gray-50"
+                  ? "text-brand-blue bg-blue-50"
+                  : "text-gray-600 hover:text-brand-blue hover:bg-gray-50"
                   }`}
               >
                 {link.name}

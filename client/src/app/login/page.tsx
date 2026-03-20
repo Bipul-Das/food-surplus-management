@@ -9,9 +9,10 @@ import * as z from "zod";
 import { useUserStore } from "@/store/userStore";
 import api from "@/lib/api";
 import { FloatingCard } from "@/components/ui/FloatingCard";
-import { GoogleStyleInput } from "@/components/ui/GoogleStyleInput";
-import { Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/Input";   // UPGRADED: Using Phase 2 Atomic Input
+import { Button } from "@/components/ui/Button"; // UPGRADED: Using Phase 2 Atomic Button
 import toast from "react-hot-toast";
+import Logo from "@/components/common/Logo";
 
 // 1. Strict Zod Schema
 const loginSchema = z.object({
@@ -34,42 +35,41 @@ export default function LoginPage() {
     resolver: zodResolver(loginSchema),
   });
 
-  // 2. Submit Handler
+  // 2. Submit Handler (Logic preserved exactly as requested)
   const onSubmit = async (data: LoginFormValues) => {
     setGlobalError(null);
     try {
       const response = await api.post("/auth/login", data);
       const { user, token } = response.data.data;
-      
-      // Update global Zustand store
+
       login(user, token);
       toast.success("Login successful");
-      
-      // Route based on role
+
       const rolePath = user.role === "LEAD_DEV" ? "admin" : user.role.toLowerCase();
       router.push(`/dashboard/${rolePath}`);
     } catch (error: any) {
-      // Handle 401 Unauthorized securely
       const message = error.response?.data?.message || "Invalid credentials or server error.";
       setGlobalError(message);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-6">
-        <h2 className="text-3xl font-extrabold text-brand-dark">
-          Food<span className="text-brand-blue">Surplus</span>
-        </h2>
-        <p className="mt-2 text-sm text-text-secondary">
+    <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-surface-background">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-8 flex flex-col items-center justify-center">
+
+        {/* DESIGN UPGRADE: Spacing and Typography */}
+        <Logo iconSize="lg" className="mb-4 justify-center" />
+        <p className="text-[16px] text-gray-500 font-medium tracking-tight">
           Secure operational access portal.
         </p>
       </div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <FloatingCard>
+        {/* DESIGN UPGRADE: Using saas-card class for soft corners and smooth shadows */}
+        <FloatingCard className="saas-card">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <GoogleStyleInput
+
+            <Input
               label="Email Address"
               type="email"
               placeholder="e.g., dev@project.com"
@@ -77,7 +77,7 @@ export default function LoginPage() {
               error={errors.email?.message}
             />
 
-            <GoogleStyleInput
+            <Input
               label="Password"
               type="password"
               placeholder="Enter your password"
@@ -85,22 +85,31 @@ export default function LoginPage() {
               error={errors.password?.message}
             />
 
-            {/* Inline Global Error (e.g., Wrong Password) */}
+            {/* DESIGN UPGRADE: Enterprise-style error alerting */}
             {globalError && (
-              <div className="text-sm font-medium text-urgency-high bg-red-50 p-3 rounded-md border border-red-100">
+              <div className="text-sm font-semibold text-semantic-danger bg-semantic-danger/10 p-4 rounded-xl border border-semantic-danger/20 animate-in fade-in slide-in-from-top-1">
                 {globalError}
               </div>
             )}
 
-            <button
+            {/* DESIGN UPGRADE: Using Atomic Button with cinematic lift and loading state */}
+            <Button
               type="submit"
-              disabled={isSubmitting}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-brand-blue hover:bg-brand-light focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-blue transition-colors disabled:opacity-70"
+              variant="primary"
+              size="lg"
+              isLoading={isSubmitting}
+              className="w-full"
             >
-              {isSubmitting ? <Loader2 className="animate-spin h-5 w-5" /> : "Secure Login"}
-            </button>
+              Secure Login
+            </Button>
+
           </form>
         </FloatingCard>
+
+        {/* FOOTER: Subtle professional touch */}
+        <p className="mt-8 text-center text-xs text-gray-400 font-medium uppercase tracking-widest">
+          Enterprise Security Protocol v4.0
+        </p>
       </div>
     </div>
   );
