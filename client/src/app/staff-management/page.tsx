@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import PrivateNavbar from "@/components/layout/PrivateNavbar";
-import { FloatingCard } from "@/components/ui/FloatingCard";
+import { Card } from "@/components/ui/Card";
 import { UserPlus, Edit2, Trash2, Copy, CheckCircle2, ShieldCheck, Loader2, X } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -174,7 +174,7 @@ export default function StaffManagementPage() {
             <p className="text-sm text-text-secondary mt-1">Convert approved applications into active operational accounts.</p>
           </div>
 
-          <FloatingCard className={`border-t-4 ${editingId ? 'border-amber-400 shadow-lg' : 'border-brand-blue'}`}>
+          <Card className={`border-t-4 ${editingId ? 'border-amber-400 shadow-lg' : 'border-brand-blue'}`}>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-brand-dark flex items-center gap-2 uppercase tracking-wide">
                 {editingId ? <Edit2 className="w-5 h-5 text-amber-500" /> : <UserPlus className="w-5 h-5 text-text-secondary" />}
@@ -293,9 +293,9 @@ export default function StaffManagementPage() {
                 </div>
               </form>
             )}
-          </FloatingCard>
+          </Card>
 
-          <FloatingCard className="p-0 overflow-hidden">
+          <Card className="p-0 overflow-hidden">
             <div className="p-6 border-b border-gray-100">
               <h2 className="text-lg font-bold text-brand-dark uppercase tracking-wide">Registered Network Participants</h2>
             </div>
@@ -358,7 +358,7 @@ export default function StaffManagementPage() {
                 </tbody>
               </table>
             </div>
-          </FloatingCard>
+          </Card>
 
         </main>
       </div>

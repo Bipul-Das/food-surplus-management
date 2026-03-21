@@ -12,7 +12,8 @@ export const getMyDeliveries = async (req: AuthRequest, res: Response, next: Nex
     const deliveries = await prisma.pledge.findMany({
       where: { driverId },
       include: {
-        request: true,
+        // LEAD DEV FIX: Included the receiver to access their profile data
+        request: { include: { receiver: true } }, 
         donor: true,
         items: { include: { category: true } }
       },
@@ -27,7 +28,9 @@ export const getMyDeliveries = async (req: AuthRequest, res: Response, next: Nex
         id: d.id,
         status: d.status,
         donorName: d.donor.organization || d.donor.name,
-        receiverName: d.request.orgName,
+        donorAvatar: d.donor.avatar, // LEAD DEV FIX: Forwarding Donor Avatar
+        receiverName: d.request.orgName || d.request.receiver?.name,
+        receiverAvatar: d.request.receiver?.avatar, // LEAD DEV FIX: Forwarding Receiver Avatar
         details: `Deliver to ${d.request.orgName} from ${d.donor.organization || d.donor.name}`,
         payload: itemsString,
         createdAt: d.createdAt
@@ -40,8 +43,6 @@ export const getMyDeliveries = async (req: AuthRequest, res: Response, next: Nex
   }
 };
 
-// Add this to the bottom of server/src/controllers/delivery.controller.ts
-
 export const getDeliveryHistory = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const driverId = req.user?.id || (req.user as any)?.userId;
@@ -50,7 +51,8 @@ export const getDeliveryHistory = async (req: AuthRequest, res: Response, next: 
     const deliveries = await prisma.pledge.findMany({
       where: { driverId },
       include: {
-        request: true,
+        // LEAD DEV FIX: Included the receiver to access their profile data
+        request: { include: { receiver: true } },
         donor: true,
         items: { include: { category: true } }
       },
@@ -65,8 +67,10 @@ export const getDeliveryHistory = async (req: AuthRequest, res: Response, next: 
         id: d.id,
         createdAt: d.createdAt,
         status: mappedStatus,
-        receiverOrg: d.request.orgName,
+        receiverOrg: d.request.orgName || d.request.receiver?.name,
+        receiverAvatar: d.request.receiver?.avatar, // LEAD DEV FIX: Forwarding Receiver Avatar
         donorOrg: d.donor.organization || d.donor.name,
+        donorAvatar: d.donor.avatar, // LEAD DEV FIX: Forwarding Donor Avatar
         items: d.items.map(i => ({
           food: i.category.name,
           quantity: i.quantity,

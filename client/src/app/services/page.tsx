@@ -189,7 +189,7 @@ export default function ServicesPage() {
             {/* DESIGN UPGRADE: Swapped to Primary Button variant with Cinematic Lift */}
             <Link
               href="/apply"
-              className="inline-flex justify-center items-center px-10 py-4 text-base font-bold rounded-xl text-white bg-brand-blue hover:bg-brand-light transition-all duration-300 ease-cinematic shadow-md hover:shadow-xl hover:-translate-y-1"
+              className="inline-flex justify-center items-center px-10 py-4 text-base font-bold rounded-xl text-white bg-brand-blue hover:bg-black transition-all duration-300 ease-cinematic shadow-md hover:shadow-xl hover:-translate-y-1"
             >
               Apply for Network Access
               <ArrowRight className="ml-2 w-5 h-5 stroke-[3px]" />

@@ -133,6 +133,7 @@ export const getActiveRequests = async (req: AuthRequest, res: Response, next: N
   try {
     const requests = await prisma.foodRequest.findMany({
       include: { 
+        receiver: true,
         items: { include: { category: true } },
         pledges: { include: { donor: true, driver: true, items: { include: { category: true } } } }
       },
@@ -194,6 +195,7 @@ export const getActiveRequests = async (req: AuthRequest, res: Response, next: N
     const formatted = processedRequests.map((reqObj: any) => ({
       id: reqObj.id,
       receiverId: reqObj.receiverId,
+      receiverAvatar: reqObj.receiver?.avatar,
       orgName: reqObj.orgName,
       location: reqObj.location,
       urgency: reqObj.urgency,

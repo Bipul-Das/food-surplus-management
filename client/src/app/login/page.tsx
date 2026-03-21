@@ -8,9 +8,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useUserStore } from "@/store/userStore";
 import api from "@/lib/api";
-import { FloatingCard } from "@/components/ui/FloatingCard";
-import { Input } from "@/components/ui/Input";   // UPGRADED: Using Phase 2 Atomic Input
-import { Button } from "@/components/ui/Button"; // UPGRADED: Using Phase 2 Atomic Button
+
+// LEAD DEV FIX: Removed the deleted FloatingCard import.
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
 import toast from "react-hot-toast";
 import Logo from "@/components/common/Logo";
 
@@ -35,7 +36,7 @@ export default function LoginPage() {
     resolver: zodResolver(loginSchema),
   });
 
-  // 2. Submit Handler (Logic preserved exactly as requested)
+  // 2. Submit Handler
   const onSubmit = async (data: LoginFormValues) => {
     setGlobalError(null);
     try {
@@ -57,7 +58,6 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-surface-background">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-8 flex flex-col items-center justify-center">
 
-        {/* DESIGN UPGRADE: Spacing and Typography */}
         <Logo iconSize="lg" className="mb-4 justify-center" />
         <p className="text-[16px] text-gray-500 font-medium tracking-tight">
           Secure operational access portal.
@@ -65,8 +65,9 @@ export default function LoginPage() {
       </div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        {/* DESIGN UPGRADE: Using saas-card class for soft corners and smooth shadows */}
-        <FloatingCard className="saas-card">
+
+        {/* LEAD DEV FIX: Replaced FloatingCard with a standard div using our global .saas-card class */}
+        <div className="saas-card">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
             <Input
@@ -85,14 +86,12 @@ export default function LoginPage() {
               error={errors.password?.message}
             />
 
-            {/* DESIGN UPGRADE: Enterprise-style error alerting */}
             {globalError && (
               <div className="text-sm font-semibold text-semantic-danger bg-semantic-danger/10 p-4 rounded-xl border border-semantic-danger/20 animate-in fade-in slide-in-from-top-1">
                 {globalError}
               </div>
             )}
 
-            {/* DESIGN UPGRADE: Using Atomic Button with cinematic lift and loading state */}
             <Button
               type="submit"
               variant="primary"
@@ -104,9 +103,8 @@ export default function LoginPage() {
             </Button>
 
           </form>
-        </FloatingCard>
+        </div>
 
-        {/* FOOTER: Subtle professional touch */}
         <p className="mt-8 text-center text-xs text-gray-400 font-medium uppercase tracking-widest">
           Enterprise Security Protocol v4.0
         </p>

@@ -16,9 +16,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
         // Variant mapping
         const variants = {
-            primary: "bg-brand-blue text-white shadow-sm hover:bg-brand-light hover:-translate-y-0.5 hover:shadow-md focus:ring-brand-blue",
+            primary: "bg-brand-blue text-white shadow-sm hover:bg-brand-dark hover:-translate-y-0.5 hover:shadow-md focus:ring-brand-blue",
             secondary: "bg-white text-brand-dark border border-gray-200 shadow-sm hover:border-brand-blue hover:text-brand-blue hover:bg-blue-50/50 hover:-translate-y-0.5 hover:shadow-md focus:ring-gray-200",
             danger: "bg-semantic-danger text-white shadow-sm hover:bg-red-600 hover:-translate-y-0.5 hover:shadow-md focus:ring-semantic-danger",
+            success: "bg-semantic-success text-white shadow-sm hover:bg-emerald-600 hover:-translate-y-0.5 hover:shadow-md focus:ring-semantic-success",
             ghost: "bg-transparent text-gray-600 hover:bg-gray-100 hover:text-brand-dark focus:ring-gray-200",
         };
 

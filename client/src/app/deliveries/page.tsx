@@ -5,7 +5,10 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import PrivateNavbar from "@/components/layout/PrivateNavbar";
-import { Search, Loader2 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Search, Loader2, MapPin, Navigation } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function DeliveryDirectoryPage() {
@@ -25,7 +28,6 @@ export default function DeliveryDirectoryPage() {
       const result = await res.json();
 
       if (result.success) {
-        // FIX: Strictly filter out Delivery Men who have toggled isActive to false
         const agents = result.data.filter((u: any) => u.role === "DELIVERY_MAN" && u.isActive !== false);
         setPersonnel(agents);
       }
@@ -44,84 +46,126 @@ export default function DeliveryDirectoryPage() {
 
   return (
     <ProtectedRoute allowedRoles={["DONOR", "RECEIVER", "COORDINATOR", "LEAD_DEV", "DELIVERY_MAN"]}>
-      <div className="min-h-screen bg-white flex flex-col font-sans">
+      <div className="min-h-screen bg-surface-background flex flex-col font-sans">
         <PrivateNavbar />
 
-        <main className="flex-1 w-full max-w-4xl mx-auto px-4 py-12">
+        <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-8 md:py-12">
 
-          <h1 className="text-[32px] font-normal text-gray-900 mb-8 tracking-tight uppercase">
-            Delivery personnel
-          </h1>
-
-          <div className="flex border-[2px] border-gray-900 w-fit mb-10 bg-white shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
-            <div className="px-8 py-2.5 font-bold text-white bg-[#4a86e8] border-r-[2px] border-gray-900 uppercase tracking-widest text-[14px]">
-              Delivery Directory
-            </div>
-            <Link href="/requests" className="px-8 py-2.5 font-normal text-gray-900 hover:bg-gray-50 transition-colors uppercase tracking-widest text-[14px]">
-              Current requests
-            </Link>
+          {/* DESIGN UPGRADE: SaaS Header Structure */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-black text-brand-dark tracking-tight">Logistics Network</h1>
+            <p className="text-[15px] font-medium text-gray-500 mt-1">Live directory of active delivery personnel.</p>
           </div>
 
-          <div className="flex items-center px-4 py-3 border-[2px] border-gray-900 bg-white mb-6 shadow-sm">
-            <div className="relative mr-4 flex items-center justify-center">
-              <Search className="w-6 h-6 text-[#4a86e8] stroke-2" />
-            </div>
-            <input
+          {/* DESIGN UPGRADE: Cinematic Search Bar matching Requests page layout */}
+          <div className="mb-8 bg-white p-2 rounded-2xl border border-gray-200 shadow-sm flex items-center">
+            <Input
               type="text"
-              placeholder="Search by location/name"
+              placeholder="Search personnel by name, city, or operational zone..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-transparent border-none focus:outline-none text-[16px] text-gray-900 placeholder-gray-500 font-normal"
+              icon={<Search className="w-5 h-5 text-brand-blue" />}
+              className="bg-transparent border-none shadow-none focus:ring-0 w-full text-[15px]"
             />
           </div>
 
-          <div className="grid grid-cols-4 px-5 py-3 border-[2px] border-gray-900 bg-white text-gray-900 text-[15px] font-bold uppercase tracking-widest mb-3">
-            <div>Name</div>
-            <div>City</div>
-            <div className="col-span-2">Location</div>
-          </div>
-
-          <div className="space-y-3">
+          <div className="space-y-4">
             {isLoading ? (
-              <div className="py-12 border-[2px] border-gray-900 flex justify-center bg-white shadow-sm">
-                <Loader2 className="w-8 h-8 animate-spin text-gray-900" />
+              <div className="flex flex-col items-center justify-center py-32 space-y-4">
+                <Loader2 className="w-12 h-12 animate-spin text-brand-blue" />
+                <p className="text-gray-500 font-medium animate-pulse">Syncing logistics roster...</p>
               </div>
             ) : filteredAgents.length === 0 ? (
-              <div className="py-12 border-[2px] border-gray-900 text-center text-gray-600 bg-gray-50 font-medium shadow-sm">
-                No active delivery personnel found.
-              </div>
+              <Card className="p-16 text-center flex flex-col items-center justify-center">
+                <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-6">
+                  <Navigation className="w-10 h-10 text-gray-400" />
+                </div>
+                <h3 className="text-xl font-bold text-brand-dark mb-2">No Personnel Found</h3>
+                <p className="text-gray-500 font-medium">There are no active delivery personnel matching your search criteria.</p>
+              </Card>
             ) : (
-              filteredAgents.map((agent) => {
-                const targetId = agent.userId || agent.user?.id || agent.id;
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredAgents.map((agent) => {
+                  const targetId = agent.userId || agent.user?.id || agent.id;
 
-                return (
-                  <div
-                    key={agent.id || targetId}
-                    className="grid grid-cols-4 px-5 py-4 border-[2px] border-gray-900 bg-white items-center text-gray-900 text-[16px] hover:-translate-y-0.5 transition-transform shadow-sm"
-                  >
-                    <div>
-                      <Link
-                        href={`/profile/${targetId}`}
-                        className="font-bold text-gray-900 hover:text-[#4a86e8] hover:underline transition-colors w-fit block"
-                      >
-                        {agent.name}
-                      </Link>
-                    </div>
+                  // Helper for Avatar Fallback & Name Parsing
+                  const displayName = agent.name || "Delivery Agent";
+                  const initials = displayName.substring(0, 3).toUpperCase();
+                  const avatarUrl = agent.avatar; // Relies strictly on backend response
 
-                    <div className="font-normal capitalize text-gray-700">{agent.city || "-"}</div>
-                    <div className="font-normal capitalize text-gray-700">{agent.address || "Unassigned Zone"}</div>
+                  return (
+                    <Card key={agent.id || targetId} className="cinematic-hover flex flex-col group overflow-hidden">
+                      <CardContent className="p-6 flex-1 flex flex-col relative">
 
-                    <div className="flex justify-end">
-                      <Link
-                        href={`/messages?contactId=${targetId}&name=${encodeURIComponent(agent.name)}&role=${agent.role}`}
-                        className="px-6 py-2 bg-[#a5a5a5] border-[1.5px] border-gray-900 text-gray-900 font-bold uppercase tracking-widest text-[13px] hover:bg-[#8e8e8e] transition-colors"
-                      >
-                        Message
-                      </Link>
-                    </div>
-                  </div>
-                );
-              })
+                        {/* Decorative Background Accent */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-brand-blue/5 rounded-bl-[100px] -z-10 transition-transform group-hover:scale-110 duration-500" />
+
+                        {/* Top Section: Avatar and Identity */}
+                        <div className="flex items-center gap-4 mb-6 relative z-10">
+
+                          {/* DESIGN UPGRADE: Integrated Layered Avatar Component */}
+                          <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-brand-blue/20 ring-4 ring-white shadow-md flex-shrink-0 relative bg-brand-blue/10 text-brand-blue text-xl font-black transition-colors duration-300">
+                            {/* LAYER 1: Fallback Initials */}
+                            <span className="absolute inset-0 flex items-center justify-center z-0">
+                              {initials}
+                            </span>
+
+                            {/* LAYER 2: Profile Picture */}
+                            {avatarUrl && (
+                              <img
+                                src={avatarUrl.startsWith('http') ? avatarUrl : `http://localhost:5000${avatarUrl.startsWith('/') ? '' : '/'}${avatarUrl}`}
+                                alt={`${displayName} profile`}
+                                className="absolute inset-0 w-full h-full object-cover z-10 bg-white"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
+                            )}
+                          </div>
+
+                          <div className="flex-1">
+                            <Link
+                              href={`/profile/${targetId}`}
+                              className="text-[18px] font-black text-brand-dark hover:text-brand-blue transition-colors tracking-tight line-clamp-1 block"
+                            >
+                              {displayName}
+                            </Link>
+
+                            {/* Operational Status Tag */}
+                            <div className="flex items-center mt-1">
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 text-semantic-success text-xs font-bold border border-emerald-100">
+                                <span className="w-1.5 h-1.5 rounded-full bg-semantic-success animate-pulse" />
+                                Active Duty
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Middle Section: Location Data */}
+                        <div className="bg-gray-50/80 rounded-xl p-4 border border-gray-100 mb-6 flex-1 relative z-10">
+                          <div className="flex items-start text-sm text-gray-600 font-medium">
+                            <MapPin className="w-4 h-4 mr-2 text-brand-blue mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="capitalize font-bold text-gray-800">{agent.city || "Unassigned City"}</p>
+                              <p className="text-gray-500 capitalize">{agent.address || "Pending Zone Assignment"}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Action Area */}
+                        <div className="mt-auto relative z-10">
+                          <Link href={`/messages?contactId=${targetId}&name=${encodeURIComponent(agent.name)}&role=${agent.role}`} className="block w-full">
+                            <Button variant="secondary" className="w-full justify-center bg-white hover:bg-brand-blue hover:text-white border-gray-200 hover:border-brand-blue transition-all duration-300">
+                              Dispatch Message
+                            </Button>
+                          </Link>
+                        </div>
+
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             )}
           </div>
 

@@ -36,7 +36,8 @@ export const createUser = async (req: Request, res: Response, next: NextFunction
       select: {
         id: true, email: true, role: true, name: true,
         organization: true, phone: true, address: true,
-        city: true, createdAt: true, isActive: true
+        city: true, createdAt: true, isActive: true,
+        avatar: true // LEAD DEV FIX: Included avatar in response
       } 
     });
 
@@ -53,7 +54,8 @@ export const getAllUsers = async (req: Request, res: Response, next: NextFunctio
       select: {
         id: true, email: true, role: true, name: true,
         organization: true, phone: true, address: true, 
-        city: true, createdAt: true, isActive: true // NEW: Exposed for frontend filtering
+        city: true, createdAt: true, isActive: true,
+        avatar: true // LEAD DEV FIX: Included avatar so the Directory Page can render images
       }
     });
 
@@ -95,7 +97,11 @@ export const updateUserById = async (req: AuthRequest, res: Response, next: Next
     const updatedUser = await prisma.user.update({
       where: { id: id as any },
       data: dataToUpdate,
-      select: { id: true, email: true, role: true, name: true, organization: true, phone: true, address: true, city: true, isActive: true }
+      select: { 
+          id: true, email: true, role: true, name: true, 
+          organization: true, phone: true, address: true, 
+          city: true, isActive: true, avatar: true // LEAD DEV FIX: Added avatar to select block
+      }
     });
 
     res.status(200).json({ success: true, message: "Entity updated securely.", data: updatedUser });

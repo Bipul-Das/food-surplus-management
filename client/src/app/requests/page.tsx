@@ -5,16 +5,21 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import PrivateNavbar from "@/components/layout/PrivateNavbar";
-import { X, Search, Loader2 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Input } from "@/components/ui/Input";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { X, Search, Loader2, Clock, MapPin, Truck } from "lucide-react";
 import toast from "react-hot-toast";
 import { useUserStore } from "@/store/userStore";
 
-const getUrgencyStyles = (level: string) => {
+const getUrgencyBadge = (level: string) => {
   switch (level) {
-    case "3": return "bg-[#e00000] text-white border-[#e00000]";
-    case "2": return "bg-[#fbc02d] text-white border-[#fbc02d]";
-    case "1": return "bg-[#388e3c] text-white border-[#388e3c]";
-    default: return "bg-gray-200 text-gray-900 border-gray-400";
+    case "3": return <Badge variant="danger" size="md" className="ml-2">Urgency 3</Badge>;
+    case "2": return <Badge variant="warning" size="md" className="ml-2">Urgency 2</Badge>;
+    case "1": return <Badge variant="success" size="md" className="ml-2">Urgency 1</Badge>;
+    default: return <Badge variant="neutral" size="md" className="ml-2">Standard</Badge>;
   }
 };
 
@@ -68,11 +73,8 @@ export default function RequestsPage() {
       });
       const data = await res.json();
       if (data.success) setRequests(data.data);
-    } catch (error) {
-      toast.error("Failed to fetch active requests.");
-    } finally {
-      setIsLoading(false);
-    }
+    } catch (error) { toast.error("Failed to fetch active requests."); }
+    finally { setIsLoading(false); }
   };
 
   const fetchAllocationData = async () => {
@@ -93,12 +95,9 @@ export default function RequestsPage() {
       const usersRes = await fetch("http://localhost:5000/api/users", { headers });
       const usersData = await usersRes.json();
       if (usersData.success) {
-        // FIX: Strictly filter out Delivery Men who have toggled isActive to false
         setDeliveryAgents(usersData.data.filter((u: any) => u.role === "DELIVERY_MAN" && u.isActive !== false));
       }
-    } catch (error) {
-      toast.error("Failed to synchronize logistics data.");
-    }
+    } catch (error) { toast.error("Failed to synchronize logistics data."); }
   };
 
   const openPledgeModal = (req: any) => {
@@ -127,7 +126,6 @@ export default function RequestsPage() {
     if (totalPledged <= 0) return toast.error("Invalid quantity.");
 
     const batchAllocations: any[] = [];
-
     for (const [food, amount] of Object.entries(pledgeAmounts)) {
       let remainingAmount = amount;
       if (remainingAmount <= 0) continue;
@@ -140,64 +138,36 @@ export default function RequestsPage() {
         const dateA = new Date(a.expiryDate).getTime();
         const dateB = new Date(b.expiryDate).getTime();
         if (dateA !== dateB) return dateA - dateB;
-
         const createA = new Date(a.createdAt || 0).getTime();
         const createB = new Date(b.createdAt || 0).getTime();
         if (createA !== createB) return createA - createB;
-
         return (a.batchNumber || "").localeCompare(b.batchNumber || "", undefined, { numeric: true });
       });
 
       for (const batch of availableBatches) {
         if (remainingAmount <= 0) break;
-
         const deductQuantity = Math.min(batch.currentQuantity, remainingAmount);
-
-        batchAllocations.push({
-          inventoryId: batch.id,
-          categoryId: batch.categoryId,
-          food: food,
-          quantity: deductQuantity,
-          batchNumber: batch.batchNumber
-        });
-
+        batchAllocations.push({ inventoryId: batch.id, categoryId: batch.categoryId, food: food, quantity: deductQuantity, batchNumber: batch.batchNumber });
         remainingAmount -= deductQuantity;
       }
-
-      if (remainingAmount > 0) {
-        return toast.error(`System Error: Insufficient continuous inventory to fulfill ${food}.`);
-      }
+      if (remainingAmount > 0) return toast.error(`System Error: Insufficient continuous inventory to fulfill ${food}.`);
     }
 
     setIsSubmitting(true);
     try {
       const res = await fetch(`http://localhost:5000/api/requests/${activeRequest.id}/pledge`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`
-        },
-        body: JSON.stringify({
-          pledgeAmounts,
-          batchAllocations,
-          driverId: selectedDriverId
-        })
+        method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
+        body: JSON.stringify({ pledgeAmounts, batchAllocations, driverId: selectedDriverId })
       });
-
       const result = await res.json();
       if (result.success) {
         toast.success("Transaction Locked. Inventory Deducted.");
         setActiveRequest(null);
         fetchRequests();
         fetchAllocationData();
-      } else {
-        throw new Error(result.message);
-      }
-    } catch (error: any) {
-      toast.error(error.message || "Transaction failed.");
-    } finally {
-      setIsSubmitting(false);
-    }
+      } else throw new Error(result.message);
+    } catch (error: any) { toast.error(error.message || "Transaction failed."); }
+    finally { setIsSubmitting(false); }
   };
 
   const visibleRequests = requests.slice(0, visibleCount);
@@ -208,23 +178,24 @@ export default function RequestsPage() {
 
   return (
     <ProtectedRoute allowedRoles={["DONOR", "RECEIVER", "COORDINATOR", "LEAD_DEV", "DELIVERY_MAN"]}>
-      {/* LEAD DEV FIX: Restored the layout wrappers and PrivateNavbar since layout.tsx was deleted */}
-      <div className="min-h-screen bg-white flex flex-col font-sans">
-
+      <div className="min-h-screen bg-surface-background flex flex-col font-sans">
         <PrivateNavbar />
 
-        <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-12">
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8 md:py-12">
+
+          <div className="mb-8">
+            <h1 className="text-3xl font-black text-brand-dark tracking-tight">Active Requests</h1>
+            <p className="text-[15px] font-medium text-gray-500 mt-1">Live overview of network needs and ongoing operations.</p>
+          </div>
 
           {isLoading ? (
-            <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-gray-900" /></div>
+            <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-brand-blue" /></div>
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {visibleRequests.map((req) => {
-
                   const completedPledges = req.pledges?.filter((p: any) => p.status === 'COMPLETED') || [];
                   const totalDemanded = req.items.reduce((sum: number, item: any) => sum + (item.initialQuantity || item.deficit || 0), 0);
-
                   const totalReceived = req.items.reduce((sum: number, item: any) => {
                     return sum + completedPledges.reduce((s: number, p: any) => {
                       const pItem = p.items?.find((pi: any) => pi.categoryId === item.categoryId);
@@ -241,262 +212,213 @@ export default function RequestsPage() {
                   const isExpired = displayStatus === 'EXPIRED' || timeRemaining === "Expired";
                   const isLockedOut = isCompleted || isExpired;
 
-                  let badgeBg = 'bg-[#a5a5a5]';
-                  if (displayStatus === 'OPEN') badgeBg = 'bg-[#b4c7dc]';
-                  else if (displayStatus === 'PARTIAL') badgeBg = 'bg-[#f6b26b]';
+                  let badgeVariant: "info" | "warning" | "danger" | "success" | "neutral" = "neutral";
+                  if (displayStatus === 'OPEN') badgeVariant = "info";
+                  else if (displayStatus === 'PARTIAL') badgeVariant = "warning";
+                  else if (displayStatus === 'EXPIRED') badgeVariant = "danger";
+                  else if (displayStatus === 'FULFILLED') badgeVariant = "success";
+
+                  const displayName = req.orgName || req.organization || req.name || "Organization";
+                  const initials = displayName.substring(0, 3).toUpperCase();
+
+                  // LEAD DEV FIX: Now accurately targeting the receiverAvatar property matching your updated backend!
+                  const avatarUrl = req.receiverAvatar;
 
                   return (
-                    <div key={req.id} className={`bg-white border-[3px] border-[#0a192f] p-8 flex flex-col items-center relative ${isLockedOut ? 'opacity-60 bg-gray-50' : 'hover:-translate-y-1 transition-transform'}`}>
+                    <Card key={req.id} className={`flex flex-col relative ${isLockedOut ? 'opacity-60 grayscale-[0.2]' : 'cinematic-hover'}`}>
 
-                      <div className={`absolute top-0 right-0 border-b-[2px] border-l-[2px] border-gray-900 px-6 py-1 ${badgeBg}`}>
-                        <span className="text-[#cc0000] font-bold tracking-wider text-[14px] uppercase">
+                      <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                        <Badge variant={badgeVariant}>
                           {displayStatus}
-                        </span>
+                        </Badge>
+                        <div className="flex items-center text-sm font-bold text-gray-500">
+                          <Clock className="w-4 h-4 mr-1.5" />
+                          {isCompleted ? "Goal Met" : isExpired ? "Expired" : timeRemaining}
+                        </div>
                       </div>
 
-                      <div className="w-full text-center mt-2 mb-8 border-b-2 border-transparent">
-                        <h2 className="text-[22px] font-normal text-gray-900 tracking-tight mb-1">
-                          <Link
-                            href={`/profile/${req.userId || req.receiverId || ''}`}
-                            className="hover:text-[#4a86e8] hover:underline transition-colors block w-fit mx-auto"
-                          >
-                            {req.orgName}
-                          </Link>
-                        </h2>
-                        <p className="text-[16px] font-normal text-gray-800">{req.location}</p>
-                      </div>
+                      <CardContent className="p-6 flex-1 flex flex-col">
 
-                      <div className="w-full space-y-4 mb-10 px-2">
-                        {req.items.map((item: any, idx: number) => {
-                          const demanded = item.initialQuantity || item.deficit || 0;
+                        <div className="flex items-center gap-4 mb-6">
 
-                          const received = completedPledges.reduce((s: number, p: any) => {
-                            const pItem = p.items?.find((pi: any) => pi.categoryId === item.categoryId);
-                            return s + (pItem ? pItem.quantity : 0);
-                          }, 0);
+                          {/* Layered Avatar Component: Exact copy of inventory_all */}
+                          <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-brand-blue/20 ring-4 ring-white shadow-md flex-shrink-0 relative bg-brand-blue/10 text-brand-blue text-xl font-black transition-colors duration-300">
 
-                          let fillPercent = 0;
-                          if (demanded > 0) fillPercent = Math.min(100, (received / demanded) * 100);
+                            <span className="absolute inset-0 flex items-center justify-center z-0">
+                              {initials}
+                            </span>
 
-                          return (
-                            <div key={idx} className="flex justify-between items-center w-full">
-                              <span className="text-[17px] font-normal text-gray-900 capitalize w-1/3 text-left">{item.food}</span>
-                              <span className="text-[17px] font-normal text-gray-900 w-1/3 text-center tracking-wide">
-                                {received}/{demanded}{item.unit}
-                              </span>
-                              <div className="w-1/3 flex justify-end">
-                                <div className="w-[70px] h-[16px] border-[2px] border-gray-900 bg-white relative overflow-hidden">
-                                  <div
-                                    className="absolute left-0 top-0 h-full bg-gray-900 transition-all duration-500 ease-out"
-                                    style={{ width: `${fillPercent}%` }}
-                                  ></div>
-                                </div>
-                              </div>
+                            {avatarUrl && (
+                              <img
+                                src={avatarUrl.startsWith('http') ? avatarUrl : `http://localhost:5000${avatarUrl.startsWith('/') ? '' : '/'}${avatarUrl}`}
+                                alt={`${displayName} profile`}
+                                className="absolute inset-0 w-full h-full object-cover z-10 bg-white"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
+                            )}
+                          </div>
+
+                          <div className="flex-1">
+                            <Link href={`/profile/${req.receiverId || ''}`} className="text-xl font-black text-brand-dark hover:text-brand-blue transition-colors tracking-tight line-clamp-1">
+                              {displayName}
+                            </Link>
+                            <div className="flex items-center text-sm text-gray-500 mt-1 font-medium">
+                              <MapPin className="w-4 h-4 mr-1 text-brand-blue" />
+                              {req.location}
                             </div>
-                          );
-                        })}
-                      </div>
-
-                      <div className="w-full text-center mb-6">
-                        {isCompleted ? (
-                          <span className="text-[22px] font-black text-[#388e3c] uppercase tracking-widest">Goal Met</span>
-                        ) : isExpired ? (
-                          <span className="text-[22px] font-black text-[#e00000] uppercase tracking-widest">Time Expired</span>
-                        ) : (
-                          <span className="text-[24px] font-light text-[#00bfff] tracking-tight">time remaining: {timeRemaining}</span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-center gap-6 mb-8">
-                        <span className="text-[22px] text-gray-900 font-normal">Urgency</span>
-                        <div className={`w-[85px] h-[85px] rounded-full border-[2.5px] flex items-center justify-center text-[44px] font-normal shadow-sm ${getUrgencyStyles(req.urgency)}`}>
-                          {req.urgency}
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="w-full border-[2.5px] border-[#0a192f] p-6 mb-10 min-h-[100px] flex items-center justify-center text-center bg-white">
-                        <p className="text-[16px] font-medium text-gray-900 leading-relaxed">
-                          {req.description || "No specific details provided."}
-                        </p>
-                      </div>
-
-                      <div className="w-full flex items-center justify-center gap-5 mb-10">
-                        <span className="text-[17px] font-normal text-gray-900">Status {overallPercent}%</span>
-                        <div className="w-32 h-[16px] border-[2.5px] border-[#0a192f] bg-white relative overflow-hidden">
-                          <div
-                            className={`absolute left-0 top-0 h-full transition-all duration-500 ease-out ${isCompleted ? 'bg-[#388e3c]' : 'bg-[#0a192f]'}`}
-                            style={{ width: `${overallPercent}%` }}
-                          ></div>
+                        <div className="space-y-4 mb-6 flex-1">
+                          {req.items.map((item: any, idx: number) => {
+                            const demanded = item.initialQuantity || item.deficit || 0;
+                            const received = completedPledges.reduce((s: number, p: any) => {
+                              const pItem = p.items?.find((pi: any) => pi.categoryId === item.categoryId);
+                              return s + (pItem ? pItem.quantity : 0);
+                            }, 0);
+                            return (
+                              <ProgressBar
+                                key={idx}
+                                current={received}
+                                total={demanded}
+                                label={item.food}
+                                unit={item.unit}
+                              />
+                            );
+                          })}
                         </div>
-                      </div>
 
-                      <div className="w-full flex justify-center mt-auto">
+                        <div className="p-4 bg-gray-50 rounded-xl mb-6 flex items-center justify-between border border-gray-100">
+                          <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">Priority</span>
+                          {getUrgencyBadge(req.urgency)}
+                        </div>
+
                         {(user?.role === "DONOR" || user?.role === "LEAD_DEV") && (
-                          <button
-                            onClick={() => !isLockedOut && openPledgeModal(req)}
-                            disabled={isLockedOut}
-                            className={`px-10 py-3 border-[2.5px] font-bold text-[15px] transition-colors w-full ${isCompleted
-                              ? "bg-[#388e3c] border-[#388e3c] text-white cursor-not-allowed"
-                              : isExpired
-                                ? "bg-gray-200 border-gray-400 text-gray-500 cursor-not-allowed"
-                                : "bg-white border-gray-900 text-gray-900 hover:bg-gray-100 shadow-sm"
-                              }`}
-                          >
-                            {isCompleted ? "FULLY PLEDGED" : isExpired ? "EXPIRED" : "Pledge donation"}
-                          </button>
+                          <div className="mt-auto pt-2">
+                            <Button
+                              variant={isCompleted ? "success" : isExpired ? "danger" : "primary"}
+                              className="w-full"
+                              disabled={isLockedOut}
+                              onClick={() => !isLockedOut && openPledgeModal(req)}
+                            >
+                              {isCompleted ? "Fully Pledged" : isExpired ? "Request Expired" : "Pledge Donation"}
+                            </Button>
+                          </div>
                         )}
-                      </div>
-
-                    </div>
+                      </CardContent>
+                    </Card>
                   );
                 })}
               </div>
 
               {visibleCount < requests.length && (
                 <div className="mt-12 flex justify-center">
-                  <button
-                    onClick={() => setVisibleCount(prev => prev + 3)}
-                    className="px-12 py-3 bg-white border-2 border-gray-900 text-gray-900 font-bold tracking-widest uppercase hover:bg-gray-50 transition-colors"
-                  >
-                    LOAD MORE
-                  </button>
+                  <Button variant="secondary" size="lg" onClick={() => setVisibleCount(prev => prev + 3)}>
+                    Load More Requests
+                  </Button>
                 </div>
               )}
             </>
           )}
         </main>
 
-        {/* Modal Logic */}
         {activeRequest && (
-          <div className="fixed inset-0 bg-white/95 flex items-start justify-center z-50 p-8 pt-16 overflow-y-auto">
-            <div className="w-full max-w-6xl flex flex-col relative">
-              <button onClick={() => setActiveRequest(null)} className="absolute right-0 -top-8 text-gray-900 font-bold text-lg hover:underline">
-                Close (X)
-              </button>
-              <div className="flex flex-col lg:flex-row gap-16 mt-8">
-                <div className="flex-1 space-y-12">
+          <div className="fixed inset-0 bg-brand-dark/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 sm:p-8 animate-in fade-in duration-300">
+            <Card className="w-full max-w-5xl max-h-[90vh] flex flex-col relative shadow-cinematic overflow-hidden">
+
+              <div className="px-8 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <div>
+                  <h3 className="text-xl font-black text-brand-dark">Pledge Allocation Console</h3>
+                  <p className="text-sm font-medium text-gray-500">Routing surplus to {activeRequest.orgName || "Organization"}</p>
+                </div>
+                <button onClick={() => setActiveRequest(null)} className="p-2 bg-white rounded-full text-gray-400 hover:text-semantic-danger hover:bg-red-50 transition-colors shadow-sm">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-8 overflow-y-auto flex-1 flex flex-col lg:flex-row gap-12">
+
+                <div className="flex-1 space-y-8">
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-6">My Inventory</h3>
-                    <div className="border-[2px] border-gray-900">
-                      <table className="w-full text-left text-[15px]">
-                        <thead className="border-b-[2px] border-gray-900 bg-white">
-                          <tr>
-                            <th className="px-5 py-4 font-bold text-gray-900">item</th>
-                            <th className="px-5 py-4 font-bold text-gray-900">qt</th>
-                            <th className="px-5 py-4 font-bold text-gray-900">batch</th>
-                            <th className="px-5 py-4 font-bold text-gray-900">expires in</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y-[1px] divide-gray-300">
-                          {inventory.length === 0 ? (
-                            <tr><td colSpan={4} className="p-6 text-center font-medium">No active inventory found.</td></tr>
-                          ) : (
-                            inventory.map((item) => (
-                              <tr key={item.id}>
-                                <td className="px-5 py-4 font-medium capitalize">{item.category?.name}</td>
-                                <td className="px-5 py-4 font-bold">{item.currentQuantity}{item.category?.unit}</td>
-                                <td className="px-5 py-4 font-medium">{item.batchNumber}</td>
-                                <td className="px-5 py-4 font-medium">{new Date(item.expiryDate).toLocaleDateString()}</td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="inline-block px-4 py-2 border-[1.5px] border-gray-900 font-medium text-sm mb-4">
-                      Active delivery guys
-                    </div>
-                    <div className="border-[2px] border-gray-900 bg-white">
-                      <div className="flex items-center px-4 py-3 border-b-[2px] border-gray-900">
-                        <Search className="w-5 h-5 text-[#4a86e8] stroke-2 mr-3" />
-                        <input
-                          type="text"
-                          placeholder="Search by location/name"
+                    <h4 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center"><Truck className="w-4 h-4 mr-2" /> Select Delivery Agent</h4>
+                    <div className="bg-surface-background rounded-xl border border-gray-200 overflow-hidden">
+                      <div className="p-3 border-b border-gray-200 bg-white">
+                        <Input
+                          placeholder="Search agents by name or city..."
                           value={driverSearch}
                           onChange={(e) => setDriverSearch(e.target.value)}
-                          className="w-full bg-transparent focus:outline-none text-[15px]"
+                          icon={<Search className="w-4 h-4" />}
+                          className="bg-transparent border-none shadow-none focus:ring-0 px-0"
                         />
                       </div>
-                      <div className="grid grid-cols-4 px-5 py-3 border-b-[2px] border-gray-900 text-sm font-medium">
-                        <div>Name</div>
-                        <div>city</div>
-                        <div className="col-span-2">location</div>
-                      </div>
-                      <div className="max-h-60 overflow-y-auto">
-                        <div className="divide-y-[1px] divide-gray-300">
-                          {filteredDrivers.map(agent => (
-                            <div key={agent.id} className="grid grid-cols-4 px-5 py-4 items-center text-[15px]">
-                              <div className="font-medium">{agent.name}</div>
-                              <div className="font-medium capitalize">{agent.city || "-"}</div>
-                              <div className="font-medium capitalize">{agent.address || "-"}</div>
-                              <div className="flex justify-end">
-                                <button
-                                  onClick={() => setSelectedDriverId(agent.id)}
-                                  className={`px-6 py-1.5 border-[1.5px] font-medium transition-colors ${selectedDriverId === agent.id
-                                    ? "bg-gray-900 border-gray-900 text-white"
-                                    : "bg-gray-200 border-gray-400 text-[#cc0000] hover:bg-gray-300"
-                                    }`}
-                                >
-                                  {selectedDriverId === agent.id ? "assigned" : "assign"}
-                                </button>
-                              </div>
+                      <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 bg-white">
+                        {filteredDrivers.map(agent => (
+                          <div key={agent.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
+                            <div>
+                              <p className="font-bold text-brand-dark text-sm">{agent.name}</p>
+                              <p className="text-xs font-medium text-gray-500 capitalize">{agent.city || "Unassigned Zone"}</p>
                             </div>
-                          ))}
-                        </div>
+                            <Button
+                              variant={selectedDriverId === agent.id ? "primary" : "secondary"}
+                              size="sm"
+                              onClick={() => setSelectedDriverId(agent.id)}
+                            >
+                              {selectedDriverId === agent.id ? "Assigned" : "Assign"}
+                            </Button>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
                 </div>
-                <div className="w-full lg:w-[400px] flex flex-col pt-12 space-y-8">
-                  <div className="text-right border-b-2 border-gray-900 pb-6 mb-8">
-                    <h2 className="text-2xl font-normal text-gray-900">
-                      <Link
-                        href={`/profile/${activeRequest.userId || activeRequest.receiverId || ''}`}
-                        className="hover:text-[#4a86e8] hover:underline transition-colors"
-                      >
-                        {activeRequest.orgName}
-                      </Link>
-                    </h2>
-                    <p className="text-[17px] font-normal text-gray-800">{activeRequest.location}</p>
-                  </div>
-                  <div className="space-y-6">
+
+                <div className="w-full lg:w-[400px] flex flex-col bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
+                  <h4 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-6">Fulfillment Ledger</h4>
+                  <div className="space-y-6 flex-1">
                     {activeRequest.items.map((item: any) => {
                       const avail = aggregatedInventory[item.food.toLowerCase()] || 0;
                       const maxAllowed = Math.min(item.deficit, avail);
                       const isZero = maxAllowed === 0;
                       return (
-                        <div key={item.food} className="flex items-center justify-end gap-6">
-                          <span className="font-normal text-gray-900 text-xl capitalize">{item.food}</span>
-                          <div className="w-32">
-                            <input
+                        <div key={item.food} className="flex items-center justify-between gap-4">
+                          <div>
+                            <p className="font-bold text-brand-dark capitalize text-[15px]">{item.food}</p>
+                            <p className="text-xs font-medium text-gray-500">Avail: {avail}{item.unit} | Need: {item.deficit}{item.unit}</p>
+                          </div>
+                          <div className="w-28">
+                            <Input
                               type="number"
                               min="0"
                               max={maxAllowed}
                               disabled={isZero}
                               value={pledgeAmounts[item.food] || ""}
                               onChange={(e) => handleAmountChange(item.food, e.target.value, item.deficit)}
-                              className="w-full px-4 py-2 border-[2px] border-gray-900 font-bold text-center text-lg focus:outline-none disabled:bg-gray-100 disabled:border-gray-300"
                               placeholder="0"
+                              className="text-center font-black"
                             />
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                  <div className="pt-12 flex justify-end">
-                    <button
+
+                  <div className="mt-8 pt-6 border-t border-gray-200">
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      className="w-full"
                       onClick={handleConfirmPledge}
                       disabled={isSubmitting || !selectedDriverId}
-                      className="px-12 py-4 bg-white border-[2px] border-gray-900 text-gray-900 font-normal text-xl hover:bg-gray-50 transition-colors disabled:opacity-50 flex items-center gap-3"
+                      isLoading={isSubmitting}
                     >
-                      {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin" /> : "Provide"}
-                    </button>
+                      Authorize Transaction
+                    </Button>
                   </div>
                 </div>
               </div>
-            </div>
+            </Card>
           </div>
         )}
       </div>

@@ -5,7 +5,10 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import PrivateNavbar from "@/components/layout/PrivateNavbar";
-import { Loader2 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Loader2, PackageOpen } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function CurrentInventoriesPage() {
@@ -39,75 +42,98 @@ export default function CurrentInventoriesPage() {
 
     return (
         <ProtectedRoute allowedRoles={["RECEIVER", "LEAD_DEV", "DONOR", "DELIVERY_MAN"]}>
-            <div className="min-h-screen bg-white flex flex-col font-sans">
+            <div className="min-h-screen bg-surface-background flex flex-col font-sans">
                 <PrivateNavbar />
 
-                <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-12">
-                    <h1 className="text-[22px] font-normal text-gray-900 mb-2 tracking-tight pl-1">Current inventories</h1>
+                <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-8 md:py-12">
+
+                    <div className="mb-8">
+                        <h1 className="text-3xl font-black text-brand-dark tracking-tight">Active Donor Hubs</h1>
+                        <p className="text-[15px] font-medium text-gray-500 mt-1">Live overview of network partners currently holding surplus resources.</p>
+                    </div>
 
                     {isLoading ? (
-                        <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-gray-900" /></div>
-                    ) : inventories.length === 0 ? (
-                        <div className="border-[1.5px] border-gray-900 p-12 text-center font-medium text-gray-900">
-                            No surplus inventory available at the moment.
+                        <div className="flex flex-col items-center justify-center py-32 space-y-4">
+                            <Loader2 className="w-12 h-12 animate-spin text-brand-blue" />
+                            <p className="text-gray-500 font-medium animate-pulse">Syncing logistics network...</p>
                         </div>
+                    ) : inventories.length === 0 ? (
+                        <Card className="p-16 text-center flex flex-col items-center justify-center">
+                            <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-6">
+                                <PackageOpen className="w-10 h-10 text-gray-400" />
+                            </div>
+                            <h3 className="text-xl font-bold text-brand-dark mb-2">No Surplus Available</h3>
+                            <p className="text-gray-500 font-medium">The network is currently cleared of all active inventory batches.</p>
+                        </Card>
                     ) : (
-                        // Outer container replicating the wireframe's border
-                        <div className="border-[1.5px] border-gray-900 p-8 pb-12 relative">
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-12">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                                 {visibleInventories.map((donor) => {
-
-                                    // Helper to generate a short 3-letter abbreviation for the avatar
-                                    const initials = donor.name.substring(0, 3).toLowerCase();
+                                    // Helper to generate a short 3-letter abbreviation for the avatar fallback
+                                    const initials = donor.name.substring(0, 3).toUpperCase();
 
                                     return (
-                                        <div key={donor.donorId} className="border-[1.5px] border-gray-900 p-6 flex flex-col relative bg-white min-h-[220px]">
+                                        <Card key={donor.donorId} className="cinematic-hover flex flex-col group">
+                                            <CardContent className="p-8 flex-1 flex flex-col">
 
-                                            {/* Avatar Circle */}
-                                            <div className="flex justify-center mb-6">
-                                                <div className="w-16 h-16 bg-[#4a86e8] border-[1.5px] border-gray-900 rounded-[50%] flex items-center justify-center text-white text-[20px] font-normal shadow-sm">
-                                                    {initials}
-                                                </div>
-                                            </div>
+                                                <div className="flex items-start gap-5 mb-8">
 
-                                            {/* Donor Info */}
-                                            <Link
-                                                href={`/profile/${donor.donorId}`}
-                                                className="text-[20px] font-normal text-gray-900 hover:underline hover:text-[#4a86e8] transition-colors w-fit capitalize"
-                                            >
-                                                {donor.name}
-                                            </Link>
-                                            <p className="text-[18px] font-normal text-gray-900 mb-6 capitalize">
-                                                {donor.address}, {donor.city}
-                                            </p>
-
-                                            {/* Available Categories Tags */}
-                                            <div className="flex flex-wrap gap-3">
-                                                {donor.categories.map((category: string, idx: number) => (
-                                                    <div
-                                                        key={idx}
-                                                        className="border-[1.5px] border-gray-900 px-4 py-2 text-[17px] font-normal text-gray-900 capitalize"
-                                                    >
-                                                        {category}
+                                                    {/* LEAD DEV FIX: Integrated your robust avatar URL logic with our SaaS frame */}
+                                                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-brand-blue/20 ring-4 ring-white shadow-md flex-shrink-0 relative bg-brand-blue/10 flex items-center justify-center text-brand-blue text-xl font-black group-hover:border-brand-blue transition-colors duration-300">
+                                                        {donor.avatar ? (
+                                                            <img
+                                                                src={donor.avatar.startsWith('http') ? donor.avatar : `http://localhost:5000${donor.avatar}`}
+                                                                alt={`${donor.name} profile`}
+                                                                className="w-full h-full object-cover"
+                                                                onError={(e) => {
+                                                                    // Fallback if image fails to load
+                                                                    e.currentTarget.style.display = 'none';
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <span>{initials}</span>
+                                                        )}
                                                     </div>
-                                                ))}
-                                            </div>
 
-                                        </div>
+                                                    <div className="flex-1 pt-1">
+                                                        <Link
+                                                            href={`/profile/${donor.donorId}`}
+                                                            className="text-2xl font-black text-brand-dark hover:text-brand-blue transition-colors capitalize tracking-tight line-clamp-1"
+                                                        >
+                                                            {donor.name}
+                                                        </Link>
+                                                        <p className="text-[15px] font-medium text-gray-500 mt-1 capitalize">
+                                                            {donor.city} &bull; {donor.address}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="mt-auto">
+                                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Available Resources</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {donor.categories.map((category: string, idx: number) => (
+                                                            <Badge key={idx} variant="info" size="md" className="capitalize px-4">
+                                                                {category}
+                                                            </Badge>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                            </CardContent>
+                                        </Card>
                                     );
                                 })}
                             </div>
 
-                            {/* Load More Logic (+4 per click) */}
                             {visibleCount < inventories.length && (
-                                <div className="mt-12 flex justify-center">
-                                    <button
+                                <div className="flex justify-center pt-4">
+                                    <Button
+                                        variant="secondary"
+                                        size="lg"
                                         onClick={() => setVisibleCount(prev => prev + 4)}
-                                        className="px-10 py-3 bg-[#e6e6e6] border-[1.5px] border-gray-900 text-gray-900 font-normal text-[20px] hover:bg-[#cccccc] transition-colors"
                                     >
-                                        Load more
-                                    </button>
+                                        Load More Hubs
+                                    </Button>
                                 </div>
                             )}
                         </div>
