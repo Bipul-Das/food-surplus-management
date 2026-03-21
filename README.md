@@ -101,9 +101,12 @@ food-surplus-management/
 └── README.md
 ```
 
+---
+
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 Ensure you have the following installed in your local development environment:
 * **Node.js** (v18.x or v20.x recommended)
 * **PostgreSQL** (v15 or higher)
@@ -157,6 +160,8 @@ Ensure you have the following installed in your local development environment:
    ```
    The application will compile and become available at `http://localhost:3000`.
 
+---
+
 ## 🛡️ Security Implementation Notes
 
 The system architecture prioritizes data integrity and absolute security through a multi-layered defense strategy.
@@ -165,3 +170,17 @@ The system architecture prioritizes data integrity and absolute security through
 * **Authentication:** The platform utilizes **Stateless JWT (JSON Web Tokens)** to handle session verification. These cryptographically signed tokens are required for all non-public routes and are rigorously verified via custom Express middleware.
 * **Route Protection:** The frontend architecture implements a robust Higher-Order Component (HOC) pattern. The `<ProtectedRoute allowedRoles={[...]} />` component enforces strict **Role-Based Access Control (RBAC)**, preventing unauthorized view rendering and ensuring users only access permitted operational environments.
 * **Data Sanitization & Symmetry:** To maintain high-quality data and visual consistency, all forms implement automatic sanitization. The system programmatically trims leading/trailing whitespace and enforces title-casing for entity names, mitigating database pollution and ensuring a polished, professional UI.
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License**. You are free to use, modify, and distribute this software for personal or commercial purposes, provided that the original copyright notice and this permission notice are included in all copies or substantial portions of the Software.
+
+---
+
+## ✍️ Author & Architect
+
+**Bipul Das** *Full-Stack Software Engineer & Systems Architect* Department of Computer Science and Engineering, CUET.
+
+> "Engineering sustainable solutions for a zero-waste future." 🚀
