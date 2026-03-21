@@ -9,7 +9,7 @@ import { DataTable } from "@/components/ui/DataTable";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
-import { Plus, Image as ImageIcon, Edit2, Trash2, X } from "lucide-react";
+import { Plus, Image as ImageIcon, Edit2, Trash2, X, AlertTriangle, AlertOctagon, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 const CANONICAL_CATEGORIES: Record<string, string> = {
@@ -37,6 +37,24 @@ export default function InventoryPage() {
   const [formData, setFormData] = useState({ food: "", quantity: "" as number | "", expDate: "" });
   const derivedUnit = formData.food ? CANONICAL_CATEGORIES[formData.food] : "";
 
+  // LEAD DEV FIX: Core logic to calculate days remaining
+  const calculateStatus = (expDateString: string) => {
+    const expDate = new Date(expDateString);
+    const today = new Date();
+
+    // Reset time portions for accurate day calculations
+    expDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+
+    const diffTime = expDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return { type: 'PURGED', days: diffDays };
+    if (diffDays <= 7) return { type: 'CRITICAL', days: diffDays };
+    if (diffDays <= 14) return { type: 'WARNING', days: diffDays };
+    return { type: 'ACTIVE', days: diffDays };
+  };
+
   useEffect(() => { fetchLiveInventory(); }, []);
 
   const fetchLiveInventory = async () => {
@@ -47,15 +65,26 @@ export default function InventoryPage() {
       });
       const result = await res.json();
       if (result.success) {
-        const formattedData: InventoryItem[] = result.data.map((item: any) => ({
-          id: item.id,
-          food: item.category?.name ? item.category.name.charAt(0).toUpperCase() + item.category.name.slice(1) : item.description,
-          quantity: item.currentQuantity,
-          unit: item.category?.unit || "kg",
-          expDate: new Date(item.expiryDate).toISOString().split('T')[0],
-          batch: item.batchNumber
-        }));
-        setInventory(formattedData);
+
+        const validData: InventoryItem[] = [];
+
+        result.data.forEach((item: any) => {
+          const status = calculateStatus(item.expiryDate);
+
+          // LEAD DEV FIX: Silently filter out purged items so the Donor never sees them
+          if (status.type !== 'PURGED') {
+            validData.push({
+              id: item.id,
+              food: item.category?.name ? item.category.name.charAt(0).toUpperCase() + item.category.name.slice(1) : item.description,
+              quantity: item.currentQuantity,
+              unit: item.category?.unit || "kg",
+              expDate: new Date(item.expiryDate).toISOString().split('T')[0],
+              batch: item.batchNumber
+            });
+          }
+        });
+
+        setInventory(validData);
       }
     } catch (error) { toast.error("Failed to synchronize with database."); }
     finally { setIsLoading(false); }
@@ -122,15 +151,53 @@ export default function InventoryPage() {
   const columns = [
     {
       header: "Status",
-      accessor: () => (
-        <div className="w-10 h-10 bg-brand-green/10 border border-brand-green/20 rounded-xl flex items-center justify-center text-brand-green shadow-sm">
-          <ImageIcon size={18} />
-        </div>
-      )
+      accessor: (row: InventoryItem) => {
+        const status = calculateStatus(row.expDate);
+
+        if (status.type === 'CRITICAL') {
+          return (
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 bg-semantic-danger/10 border border-semantic-danger/20 rounded-xl flex items-center justify-center text-semantic-danger shadow-sm">
+                <AlertOctagon size={18} />
+              </div>
+            </div>
+          );
+        }
+        if (status.type === 'WARNING') {
+          return (
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 bg-semantic-warning/10 border border-semantic-warning/20 rounded-xl flex items-center justify-center text-semantic-warning shadow-sm">
+                <AlertTriangle size={18} />
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 bg-brand-green/10 border border-brand-green/20 rounded-xl flex items-center justify-center text-brand-green shadow-sm">
+              <CheckCircle2 size={18} />
+            </div>
+          </div>
+        );
+      }
     },
     { header: "Food Category", accessor: (row: InventoryItem) => <span className="font-bold text-brand-dark">{row.food}</span> },
     { header: "Available", accessor: (row: InventoryItem) => <span className="font-semibold text-brand-dark">{row.quantity} <span className="text-gray-500 text-xs">{row.unit}</span></span> },
-    { header: "Expiration Date", accessor: (row: InventoryItem) => <span className="text-gray-500 font-medium">{new Date(row.expDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span> },
+    {
+      header: "Expiration Date",
+      accessor: (row: InventoryItem) => {
+        const status = calculateStatus(row.expDate);
+        const formattedDate = new Date(row.expDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+        if (status.type === 'CRITICAL') {
+          return <span className="text-semantic-danger font-bold">{formattedDate} <span className="text-[10px] uppercase ml-1 block">({status.days} Days Left)</span></span>;
+        }
+        if (status.type === 'WARNING') {
+          return <span className="text-semantic-warning font-bold">{formattedDate} <span className="text-[10px] uppercase ml-1 block">({status.days} Days Left)</span></span>;
+        }
+        return <span className="text-gray-500 font-medium">{formattedDate}</span>;
+      }
+    },
     { header: "System Batch", accessor: (row: InventoryItem) => <Badge variant="neutral">{row.batch}</Badge> },
     {
       header: "Actions",
@@ -223,7 +290,7 @@ export default function InventoryPage() {
                 columns={columns}
                 data={inventory}
                 isLoading={isLoading}
-                emptyMessage="Your inventory is currently empty."
+                emptyMessage="Your inventory is currently empty or all items have expired."
               />
             </Card>
 

@@ -21,6 +21,10 @@ import logbookRoutes from './routes/logbook.routes';
 import profileRoutes from './routes/profile.routes';
 import editProfileRoutes from './routes/edit-profile.routes';
 import adminRoutes from './routes/admin.routes';
+import publicRoutes from './routes/public.routes';
+
+// ... your existing middleware ...
+
 
 
 
@@ -72,6 +76,7 @@ app.use('/api/receivers', receiverRoutes);
 app.use('/api/logbooks', logbookRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/edit-profile', editProfileRoutes);
+app.use('/api/public', publicRoutes);
 app.use(errorMiddleware);
 
 // Initialize Server

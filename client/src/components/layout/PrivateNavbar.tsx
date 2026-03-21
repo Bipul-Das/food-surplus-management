@@ -79,7 +79,7 @@ export default function PrivateNavbar() {
   const coordinatorLinks: NavLink[] = [
     { name: "Dashboard", href: "/dashboard/coordinator" },
     { name: "Applications", href: "/applications" },
-    { name: "Community", href: "/community" },
+    { name: "All Inventories", href: "/inventory_all" }, { name: "Active Requests", href: "/requests" }, 
     { name: "Messages", href: "/messages" },
   ];
 

@@ -188,7 +188,7 @@ export default function AboutPage() {
               </p>
               <div className="pt-6 border-t border-white/20 flex justify-between items-center">
                 <span className="text-sm font-medium text-blue-200">Current Goal</span>
-                <span className="font-bold text-white text-xl">50,000kg Redistributed</span>
+                <span className="font-bold text-white text-xl">500,000kg Redistributed</span>
               </div>
             </div>
           </div>

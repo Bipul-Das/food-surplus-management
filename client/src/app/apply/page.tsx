@@ -8,7 +8,7 @@ import PublicNavbar from "@/components/layout/PublicNavbar";
 import Footer from "@/components/layout/Footer";
 import {
   Building2, HeartHandshake, Truck,
-  ShieldCheck, Globe, Leaf, ArrowRight, CheckCircle2, Loader2
+  ShieldCheck, Globe, Leaf, ArrowRight, CheckCircle2, Loader2, Phone
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -19,7 +19,7 @@ const applicationSchema = z.object({
   }),
   name: z.string().min(2, "Name must be at least 2 characters."),
   email: z.string().email("Please enter a valid official email address."),
-  phone: z.string().regex(/^\+?[0-9]{10,15}$/, "Please enter a valid phone number (10-15 digits)."),
+  phone: z.string().regex(/^10\d{5}$/, "Phone number must be exactly 7 digits starting with 10."),
   city: z.string().min(2, "Please enter a valid city."),
   location: z.string().min(5, "Please provide a complete operational address/location."),
   reason: z.string().min(20, "Please provide a detailed reason for joining (minimum 20 characters)."),
@@ -32,18 +32,18 @@ export default function ApplyPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof ApplicationFormData, string>>>({});
 
-  // Form State
+  const [phoneSuffix, setPhoneSuffix] = useState("");
+
   const [formData, setFormData] = useState<ApplicationFormData>({
     role: "DONOR",
     name: "",
     email: "",
-    phone: "",
+    phone: "10",
     city: "",
     location: "",
     reason: "",
   });
 
-  // 2. Frontend Sanitization: Auto-trim and Proper Capitalization
   const handleNameBlur = () => {
     if (!formData.name) return;
     const sanitized = formData.name
@@ -55,11 +55,18 @@ export default function ApplyPage() {
     setFormData(prev => ({ ...prev, name: sanitized }));
   };
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value.replace(/\D/g, '');
+    const truncated = rawValue.slice(0, 5);
+
+    setPhoneSuffix(truncated);
+    setFormData(prev => ({ ...prev, phone: `10${truncated}` }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
 
-    // Validate against strict Zod schema
     const validation = applicationSchema.safeParse(formData);
 
     if (!validation.success) {
@@ -74,7 +81,6 @@ export default function ApplyPage() {
     setIsSubmitting(true);
 
     try {
-      // REAL DATABASE CONNECTION
       const response = await fetch("http://localhost:5000/api/applications", {
         method: "POST",
         headers: {
@@ -86,8 +92,8 @@ export default function ApplyPage() {
           email: formData.email,
           phone: formData.phone,
           city: formData.city,
-          address: formData.location, // Mapping to Prisma Schema
-          motivation: formData.reason // Mapping to Prisma Schema
+          address: formData.location,
+          motivation: formData.reason
         })
       });
 
@@ -106,7 +112,7 @@ export default function ApplyPage() {
   };
 
   return (
-    <div className="min-h-screen bg-bg-page flex flex-col font-sans">
+    <div className="min-h-screen bg-surface-background flex flex-col font-sans">
       <PublicNavbar />
 
       <main className="flex-1 py-16">
@@ -117,10 +123,10 @@ export default function ApplyPage() {
             {/* LEFT COLUMN: Humanitarian Impact & B2B Copy */}
             <div className="lg:col-span-5 space-y-8 lg:sticky lg:top-24">
               <div>
-                <h1 className="text-4xl font-extrabold text-brand-dark tracking-tight mb-4">
+                <h1 className="text-4xl font-black text-brand-dark tracking-tight mb-4">
                   Join the Network of <span className="text-brand-blue">Impact.</span>
                 </h1>
-                <p className="text-lg text-text-secondary leading-relaxed">
+                <p className="text-lg text-gray-500 font-medium leading-relaxed">
                   FoodSurplus is an enterprise-grade ecosystem dedicated to eradicating food waste. By integrating with our platform, you become a critical node in a transparent, accountable supply chain that routes surplus resources directly to vulnerable communities.
                 </p>
               </div>
@@ -131,28 +137,28 @@ export default function ApplyPage() {
                     <Leaf className="w-6 h-6 text-brand-blue" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-brand-dark text-lg">Systemic Waste Reduction</h3>
-                    <p className="text-sm text-text-secondary leading-relaxed">Transform localized food surplus from a logistical liability into a targeted, actionable community resource.</p>
+                    <h3 className="font-black text-brand-dark text-[15px] uppercase tracking-widest mb-1 mt-0.5">Systemic Waste Reduction</h3>
+                    <p className="text-[14px] font-medium text-gray-500 leading-relaxed">Transform localized food surplus from a logistical liability into a targeted, actionable community resource.</p>
                   </div>
                 </div>
 
                 <div className="flex gap-4">
-                  <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center flex-shrink-0 border border-green-100">
-                    <Globe className="w-6 h-6 text-urgency-low" />
+                  <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center flex-shrink-0 border border-emerald-100">
+                    <Globe className="w-6 h-6 text-semantic-success" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-brand-dark text-lg">Community Resilience</h3>
-                    <p className="text-sm text-text-secondary leading-relaxed">Empower NGOs and community kitchens with a reliable, mathematically quantifiable food supply infrastructure.</p>
+                    <h3 className="font-black text-brand-dark text-[15px] uppercase tracking-widest mb-1 mt-0.5">Community Resilience</h3>
+                    <p className="text-[14px] font-medium text-gray-500 leading-relaxed">Empower NGOs and community kitchens with a reliable, mathematically quantifiable food supply infrastructure.</p>
                   </div>
                 </div>
 
                 <div className="flex gap-4">
-                  <div className="w-12 h-12 bg-yellow-50 rounded-xl flex items-center justify-center flex-shrink-0 border border-yellow-100">
-                    <ShieldCheck className="w-6 h-6 text-urgency-medium" />
+                  <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center flex-shrink-0 border border-amber-100">
+                    <ShieldCheck className="w-6 h-6 text-semantic-warning" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-brand-dark text-lg">Auditable Integrity</h3>
-                    <p className="text-sm text-text-secondary leading-relaxed">Operate within a strictly governed, RBAC-protected environment. Every transaction is immutably logged for complete CSR accountability.</p>
+                    <h3 className="font-black text-brand-dark text-[15px] uppercase tracking-widest mb-1 mt-0.5">Auditable Integrity</h3>
+                    <p className="text-[14px] font-medium text-gray-500 leading-relaxed">Operate within a strictly governed, RBAC-protected environment. Every transaction is immutably logged for complete CSR accountability.</p>
                   </div>
                 </div>
               </div>
@@ -160,33 +166,33 @@ export default function ApplyPage() {
 
             {/* RIGHT COLUMN: The Application Form */}
             <div className="lg:col-span-7">
-              <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+              <div className="bg-white rounded-2xl shadow-cinematic border border-gray-200 overflow-hidden">
 
                 {isSubmitted ? (
                   <div className="p-12 flex flex-col items-center text-center animate-fade-in">
-                    <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mb-6">
-                      <CheckCircle2 className="w-10 h-10 text-urgency-low" />
+                    <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mb-6 shadow-sm border border-emerald-100">
+                      <CheckCircle2 className="w-10 h-10 text-semantic-success" />
                     </div>
-                    <h2 className="text-3xl font-bold text-brand-dark mb-4">Application Transmitted</h2>
-                    <p className="text-text-secondary leading-relaxed max-w-md mx-auto mb-8">
+                    <h2 className="text-3xl font-black text-brand-dark mb-4 tracking-tight">Application Transmitted</h2>
+                    <p className="text-gray-500 font-medium leading-relaxed max-w-md mx-auto mb-8">
                       Your operational data has been securely routed to our Coordination team. You will be contacted via your official email address following the compliance review.
                     </p>
-                    <Link href="/" className="inline-flex justify-center items-center px-8 py-3 bg-gray-100 hover:bg-gray-200 text-brand-dark font-bold rounded-lg transition-colors">
+                    <Link href="/" className="inline-flex justify-center items-center px-8 py-3.5 bg-brand-dark hover:bg-brand-blue text-white font-bold rounded-xl transition-all shadow-md hover:shadow-lg">
                       Return to Homepage
                     </Link>
                   </div>
                 ) : (
                   <div className="p-8 md:p-10">
                     <div className="mb-8 border-b border-gray-100 pb-6">
-                      <h2 className="text-2xl font-bold text-brand-dark mb-2">Participant Application</h2>
-                      <p className="text-sm text-text-secondary">Please provide accurate operational details. Placeholders indicate required formats.</p>
+                      <h2 className="text-2xl font-black text-brand-dark mb-2 tracking-tight">Participant Application</h2>
+                      <p className="text-[14px] font-medium text-gray-500">Please provide accurate operational details. Placeholders indicate required formats.</p>
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-6">
 
                       {/* Entity Type Selection */}
                       <div className="space-y-3">
-                        <label className="text-sm font-bold text-brand-dark uppercase tracking-wider">Requested Operational Role</label>
+                        <label className="text-[12px] font-bold text-gray-400 uppercase tracking-widest ml-1">Requested Operational Role</label>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           {[
                             { id: "DONOR", icon: Building2, label: "Food Donor" },
@@ -195,7 +201,7 @@ export default function ApplyPage() {
                           ].map((role) => (
                             <label
                               key={role.id}
-                              className={`relative flex flex-col items-center p-4 border rounded-xl cursor-pointer transition-all ${formData.role === role.id ? 'border-brand-blue bg-blue-50/50 shadow-sm' : 'border-gray-200 hover:border-brand-light hover:bg-gray-50'}`}
+                              className={`relative flex flex-col items-center p-4 border rounded-xl cursor-pointer transition-all cinematic-hover ${formData.role === role.id ? 'border-brand-blue bg-brand-blue/5 shadow-sm ring-1 ring-brand-blue/10' : 'border-gray-200 hover:border-brand-blue/50 hover:bg-gray-50/50'}`}
                             >
                               <input
                                 type="radio"
@@ -206,92 +212,99 @@ export default function ApplyPage() {
                                 className="sr-only"
                               />
                               <role.icon className={`w-6 h-6 mb-2 ${formData.role === role.id ? 'text-brand-blue' : 'text-gray-400'}`} />
-                              <span className={`text-sm font-bold ${formData.role === role.id ? 'text-brand-blue' : 'text-text-main'}`}>{role.label}</span>
+                              <span className={`text-[13px] font-black uppercase tracking-widest ${formData.role === role.id ? 'text-brand-blue' : 'text-gray-500'}`}>{role.label}</span>
                             </label>
                           ))}
                         </div>
-                        {errors.role && <p className="text-xs text-urgency-high font-semibold">{errors.role}</p>}
+                        {errors.role && <p className="text-[12px] font-bold text-semantic-danger ml-1 mt-1">{errors.role}</p>}
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Name Input */}
                         <div className="space-y-2">
-                          <label className="text-sm font-bold text-text-main">Entity / Individual Name</label>
+                          <label className="text-[13px] font-bold text-gray-500 uppercase tracking-widest ml-1">Entity / Individual Name</label>
                           <input
                             type="text"
-                            placeholder="e.g., Grand Hotel Dhaka"
+                            placeholder="e.g. Grand Hotel Dhaka"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             onBlur={handleNameBlur}
-                            className={`w-full px-4 py-3 rounded-lg bg-bg-input border ${errors.name ? 'border-urgency-high' : 'border-transparent'} focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-light/20 transition-all outline-none`}
+                            className={`w-full px-4 py-3 rounded-xl bg-gray-50 border ${errors.name ? 'border-semantic-danger' : 'border-gray-200'} focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-blue/20 transition-all font-medium text-brand-dark outline-none`}
                           />
-                          {errors.name && <p className="text-xs text-urgency-high font-semibold">{errors.name}</p>}
+                          {errors.name && <p className="text-[12px] font-bold text-semantic-danger ml-1 mt-1">{errors.name}</p>}
                         </div>
 
-                        {/* Phone Input */}
+                        {/* LEAD DEV FIX: Custom Standardized Phone Input with visible border */}
                         <div className="space-y-2">
-                          <label className="text-sm font-bold text-text-main">Official Phone Number</label>
-                          <input
-                            type="tel"
-                            placeholder="e.g., +8801700000000"
-                            value={formData.phone}
-                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                            className={`w-full px-4 py-3 rounded-lg bg-bg-input border ${errors.phone ? 'border-urgency-high' : 'border-transparent'} focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-light/20 transition-all outline-none`}
-                          />
-                          {errors.phone && <p className="text-xs text-urgency-high font-semibold">{errors.phone}</p>}
+                          <label className="text-[13px] font-bold text-gray-500 uppercase tracking-widest ml-1">Official Phone Number</label>
+                          <div className={`flex items-center w-full rounded-xl bg-gray-50 border overflow-hidden transition-all focus-within:bg-white focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/20 ${errors.phone ? 'border-semantic-danger' : 'border-gray-200'}`}>
+                            <div className="flex items-center justify-center pl-4 pr-3 py-3 bg-gray-100/80 border-r border-gray-200">
+                              <Phone className="w-4 h-4 text-gray-400 mr-2" />
+                              <span className="font-bold text-brand-dark">10</span>
+                              <span className="text-gray-300 mx-1">-</span>
+                            </div>
+                            <input
+                              type="tel"
+                              placeholder="XXXXX"
+                              value={phoneSuffix}
+                              onChange={handlePhoneChange}
+                              className="flex-1 px-3 py-3 bg-transparent outline-none font-medium text-brand-dark tracking-wide"
+                            />
+                          </div>
+                          {errors.phone && <p className="text-[12px] font-bold text-semantic-danger ml-1 mt-1">{errors.phone}</p>}
                         </div>
                       </div>
 
                       {/* Email Input */}
                       <div className="space-y-2">
-                        <label className="text-sm font-bold text-text-main">Official Email Address</label>
+                        <label className="text-[13px] font-bold text-gray-500 uppercase tracking-widest ml-1">Official Email Address</label>
                         <input
                           type="email"
-                          placeholder="e.g., contact@organization.org"
+                          placeholder="e.g. contact@organization.org"
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value.toLowerCase() })}
-                          className={`w-full px-4 py-3 rounded-lg bg-bg-input border ${errors.email ? 'border-urgency-high' : 'border-transparent'} focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-light/20 transition-all outline-none`}
+                          className={`w-full px-4 py-3 rounded-xl bg-gray-50 border ${errors.email ? 'border-semantic-danger' : 'border-gray-200'} focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-blue/20 transition-all font-medium text-brand-dark outline-none`}
                         />
-                        {errors.email && <p className="text-xs text-urgency-high font-semibold">{errors.email}</p>}
+                        {errors.email && <p className="text-[12px] font-bold text-semantic-danger ml-1 mt-1">{errors.email}</p>}
                       </div>
 
                       {/* City Input */}
                       <div className="space-y-2">
-                        <label className="text-sm font-bold text-text-main">City</label>
+                        <label className="text-[13px] font-bold text-gray-500 uppercase tracking-widest ml-1">City</label>
                         <input
                           type="text"
-                          placeholder="e.g., Dhaka"
+                          placeholder="e.g. Dhaka"
                           value={formData.city}
                           onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                          className={`w-full px-4 py-3 rounded-lg bg-bg-input border ${errors.city ? 'border-urgency-high' : 'border-transparent'} focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-light/20 transition-all outline-none`}
+                          className={`w-full px-4 py-3 rounded-xl bg-gray-50 border ${errors.city ? 'border-semantic-danger' : 'border-gray-200'} focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-blue/20 transition-all font-medium text-brand-dark outline-none`}
                         />
-                        {errors.city && <p className="text-xs text-urgency-high font-semibold">{errors.city}</p>}
+                        {errors.city && <p className="text-[12px] font-bold text-semantic-danger ml-1 mt-1">{errors.city}</p>}
                       </div>
 
                       {/* Location Input */}
                       <div className="space-y-2">
-                        <label className="text-sm font-bold text-text-main">Operational Location / Address</label>
+                        <label className="text-[13px] font-bold text-gray-500 uppercase tracking-widest ml-1">Operational Location / Address</label>
                         <input
                           type="text"
-                          placeholder="e.g., Block B, Mirpur 10, Dhaka"
+                          placeholder="e.g. Block B, Mirpur 10, Dhaka"
                           value={formData.location}
                           onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                          className={`w-full px-4 py-3 rounded-lg bg-bg-input border ${errors.location ? 'border-urgency-high' : 'border-transparent'} focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-light/20 transition-all outline-none`}
+                          className={`w-full px-4 py-3 rounded-xl bg-gray-50 border ${errors.location ? 'border-semantic-danger' : 'border-gray-200'} focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-blue/20 transition-all font-medium text-brand-dark outline-none`}
                         />
-                        {errors.location && <p className="text-xs text-urgency-high font-semibold">{errors.location}</p>}
+                        {errors.location && <p className="text-[12px] font-bold text-semantic-danger ml-1 mt-1">{errors.location}</p>}
                       </div>
 
                       {/* Reason Input */}
                       <div className="space-y-2">
-                        <label className="text-sm font-bold text-text-main">Operational Motivation</label>
+                        <label className="text-[13px] font-bold text-gray-500 uppercase tracking-widest ml-1">Operational Motivation</label>
                         <textarea
                           rows={4}
                           placeholder="Please detail why you wish to join the network and how you intend to contribute..."
                           value={formData.reason}
                           onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                          className={`w-full px-4 py-3 rounded-lg bg-bg-input border ${errors.reason ? 'border-urgency-high' : 'border-transparent'} focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-light/20 transition-all outline-none resize-none`}
+                          className={`w-full px-4 py-3 rounded-xl bg-gray-50 border ${errors.reason ? 'border-semantic-danger' : 'border-gray-200'} focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-blue/20 transition-all font-medium text-brand-dark outline-none resize-none`}
                         ></textarea>
-                        {errors.reason && <p className="text-xs text-urgency-high font-semibold">{errors.reason}</p>}
+                        {errors.reason && <p className="text-[12px] font-bold text-semantic-danger ml-1 mt-1">{errors.reason}</p>}
                       </div>
 
                       {/* Submit Section */}
@@ -299,12 +312,12 @@ export default function ApplyPage() {
                         <button
                           type="submit"
                           disabled={isSubmitting}
-                          className="w-full flex items-center justify-center gap-2 px-8 py-4 bg-brand-dark hover:bg-brand-blue text-white font-bold rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-70"
+                          className="w-full flex items-center justify-center gap-2 px-10 py-4 bg-brand-dark hover:bg-brand-blue text-white font-bold rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-70"
                         >
                           {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Submit Application <ArrowRight className="w-5 h-5" /></>}
                         </button>
-                        <p className="text-xs text-text-secondary mt-4 flex items-center gap-1.5 font-medium">
-                          <ShieldCheck className="w-4 h-4 text-brand-light" />
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-6 flex items-center justify-center gap-1.5 text-center max-w-sm leading-relaxed">
+                          <ShieldCheck className="w-4 h-4 flex-shrink-0" />
                           Note: No operational account is generated upon submission. All applications undergo strict manual compliance review.
                         </p>
                       </div>

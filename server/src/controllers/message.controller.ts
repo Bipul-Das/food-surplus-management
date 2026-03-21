@@ -93,12 +93,13 @@ export const getInbox = async (req: AuthRequest, res: Response, next: NextFuncti
     const trueUserId = await resolveTrueUserId(currentUserId || "");
     if (!trueUserId) return res.status(401).json({ success: false, message: "Unauthorized." });
 
+    // LEAD DEV FIX: Fetch the 'avatar' field for both the sender and receiver.
     const allMessages = await prisma.message.findMany({
       where: { OR: [{ senderId: trueUserId }, { receiverId: trueUserId }] },
       orderBy: { createdAt: 'desc' },
       include: {
-        sender: { select: { id: true, name: true, role: true } },
-        receiver: { select: { id: true, name: true, role: true } }
+        sender: { select: { id: true, name: true, role: true, avatar: true } }, 
+        receiver: { select: { id: true, name: true, role: true, avatar: true } }
       }
     });
 
@@ -108,6 +109,9 @@ export const getInbox = async (req: AuthRequest, res: Response, next: NextFuncti
       const isSender = msg.senderId === trueUserId;
       const contact = isSender ? msg.receiver : msg.sender;
 
+      // Ensure we only process valid contacts (failsafe if a user was deleted but messages remain)
+      if (!contact) continue;
+
       if (!contactsMap.has(contact.id)) {
         let contactName = contact.name;
         if (contact.role === 'COORDINATOR' && req.user!.role !== 'LEAD_DEV') {
@@ -115,8 +119,13 @@ export const getInbox = async (req: AuthRequest, res: Response, next: NextFuncti
         }
 
         contactsMap.set(contact.id, {
-          id: contact.id, name: contactName, role: contact.role,
-          lastMessage: msg.content, time: msg.createdAt, unread: 0
+          id: contact.id, 
+          name: contactName, 
+          role: contact.role,
+          lastMessage: msg.content, 
+          time: msg.createdAt, 
+          unread: 0,
+          avatar: contact.avatar // LEAD DEV FIX: Pass the avatar into the Map
         });
       }
 
@@ -125,6 +134,7 @@ export const getInbox = async (req: AuthRequest, res: Response, next: NextFuncti
       }
     }
 
+    // Convert Map values back to array and send to frontend
     res.status(200).json({ success: true, data: Array.from(contactsMap.values()) });
   } catch (error) {
     next(error);
@@ -154,7 +164,8 @@ export const getConversationThread = async (req: AuthRequest, res: Response, nex
       orderBy: { createdAt: 'asc' },
       select: {
         id: true, content: true, senderId: true, receiverId: true, isRead: true, createdAt: true,
-        sender: { select: { id: true, name: true, role: true } }
+        // Optional: If you want avatars inside the chat bubbles later, you can add avatar: true here too
+        sender: { select: { id: true, name: true, role: true } } 
       }
     });
 

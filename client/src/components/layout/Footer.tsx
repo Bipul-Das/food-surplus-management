@@ -41,14 +41,10 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-gray-400">
+        <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-center items-center gap-4">
+          <p className="text-xs text-gray-400 text-center">
             &copy; {new Date().getFullYear()} FoodSurplus Management System. All rights reserved.
           </p>
-          <div className="flex gap-6">
-            <Link href="#" className="text-xs text-gray-400 hover:text-white transition-colors">Privacy Policy</Link>
-            <Link href="#" className="text-xs text-gray-400 hover:text-white transition-colors">Terms of Service</Link>
-          </div>
         </div>
       </div>
     </footer>

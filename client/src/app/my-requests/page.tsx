@@ -4,15 +4,19 @@
 import { useState, useEffect } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import PrivateNavbar from "@/components/layout/PrivateNavbar";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, Clock, Calendar, AlertTriangle, CheckCircle2, ChevronRight, Download, XCircle } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 import toast from "react-hot-toast";
 
 const getUrgencyStyles = (level: string) => {
   switch (level) {
-    case "3": return "bg-[#e00000] text-white border-[#e00000]";
-    case "2": return "bg-[#fbc02d] text-white border-[#fbc02d]";
-    case "1": return "bg-[#388e3c] text-white border-[#388e3c]";
-    default: return "bg-[#0a192f] text-white border-[#0a192f]";
+    case "3": return "bg-semantic-danger text-white border-semantic-danger";
+    case "2": return "bg-semantic-warning text-white border-semantic-warning";
+    case "1": return "bg-semantic-success text-white border-semantic-success";
+    default: return "bg-brand-dark text-white border-brand-dark";
   }
 };
 
@@ -23,7 +27,7 @@ export default function MyRequestsPage() {
 
   const [actionPledgeId, setActionPledgeId] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(4);
+  const [visibleCount, setVisibleCount] = useState(6);
 
   useEffect(() => {
     fetchMyRequests();
@@ -116,214 +120,261 @@ export default function MyRequestsPage() {
 
   return (
     <ProtectedRoute allowedRoles={["RECEIVER", "LEAD_DEV"]}>
-      <div className="min-h-screen bg-white flex flex-col font-sans">
+      <div className="min-h-screen bg-surface-background flex flex-col font-sans">
         <PrivateNavbar />
 
-        <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-12">
-          <h1 className="text-[28px] font-normal text-gray-900 mb-8 tracking-tight">My requests</h1>
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8 md:py-12">
+
+          <div className="mb-10">
+            <h1 className="text-3xl font-black text-brand-dark tracking-tight">My Active Requests</h1>
+            <p className="text-[15px] font-medium text-gray-500 mt-1">Track and manage your broadcasted resource requirements.</p>
+          </div>
 
           {isLoading ? (
-            <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-gray-900" /></div>
-          ) : requests.length === 0 ? (
-            <div className="border-[1.5px] border-gray-900 p-12 text-center text-gray-900 bg-gray-50">
-              No requests found.
+            <div className="flex flex-col items-center justify-center py-32 space-y-4">
+              <Loader2 className="w-12 h-12 animate-spin text-brand-blue" />
+              <p className="text-gray-500 font-medium animate-pulse">Syncing network data...</p>
             </div>
+          ) : requests.length === 0 ? (
+            <Card className="flex flex-col items-center justify-center py-20 border-dashed">
+              <div className="bg-gray-50 p-4 rounded-full mb-4">
+                <AlertTriangle className="w-8 h-8 text-gray-300" />
+              </div>
+              <p className="text-lg font-bold text-gray-400">No broadcasted requests found.</p>
+            </Card>
           ) : (
-            <div className="border-[1.5px] border-[#6aa84f] p-4 lg:p-8 bg-white">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-12">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {requests.slice(0, visibleCount).map((req) => {
                   const dateStr = new Date(req.createdAt).toLocaleDateString('en-GB').replace(/\//g, '.');
-                  const itemsStr = req.items.map((i: any) => `${i.initialQuantity || i.deficit}${i.unit} ${i.food || i.category?.name}`).join(' + ');
                   const completedPledges = req.pledges?.filter((p: any) => p.status === 'COMPLETED') || [];
 
-                  return (
-                    <div key={req.id} className={`relative bg-[#e6e6e6] border-[1.5px] border-gray-900 p-6 pt-12 flex flex-col justify-between min-h-[250px] transition-transform ${req.displayStatus === 'EXPIRED' || req.displayStatus === 'FULFILLED' ? 'opacity-70' : 'hover:-translate-y-1'}`}>
+                  // DESIGN REQUIREMENT: 4 Distinct Colors for 4 Types of Requests
+                  let cardStyle = "";
+                  let badgeVariant: "info" | "warning" | "success" | "danger" | "neutral" = "neutral";
 
-                      {/* BRUTALIST BADGE */}
-                      <div className={`absolute top-0 right-0 border-b-[1.5px] border-l-[1.5px] border-gray-900 px-8 py-1.5 ${req.displayStatus === 'OPEN' ? 'bg-[#b4c7dc]' : req.displayStatus === 'PARTIAL' ? 'bg-[#f6b26b]' : 'bg-[#a5a5a5]'}`}>
-                        <span className="text-[#cc0000] font-normal text-[17px] capitalize">
-                          {req.displayStatus.toLowerCase()}
-                        </span>
+                  if (req.displayStatus === 'OPEN') {
+                    cardStyle = "border-brand-blue/30 ring-1 ring-brand-blue/10 bg-blue-50/20";
+                    badgeVariant = "info";
+                  } else if (req.displayStatus === 'PARTIAL') {
+                    cardStyle = "border-semantic-warning/40 ring-1 ring-semantic-warning/10 bg-amber-50/20";
+                    badgeVariant = "warning";
+                  } else if (req.displayStatus === 'FULFILLED') {
+                    cardStyle = "border-semantic-success/30 ring-1 ring-semantic-success/10 bg-emerald-50/20 opacity-70 grayscale-[0.2]";
+                    badgeVariant = "success";
+                  } else if (req.displayStatus === 'EXPIRED') {
+                    cardStyle = "border-semantic-danger/20 ring-1 ring-semantic-danger/5 bg-red-50/20 opacity-60 grayscale-[0.4]";
+                    badgeVariant = "danger";
+                  }
+
+                  return (
+                    <Card
+                      key={req.id}
+                      className={`flex flex-col relative overflow-hidden transition-all duration-300 ${cardStyle} ${req.displayStatus === 'OPEN' || req.displayStatus === 'PARTIAL' ? 'cinematic-hover' : ''}`}
+                    >
+                      <div className="px-5 py-4 border-b border-gray-100 bg-white/60 backdrop-blur-sm flex justify-between items-center">
+                        <Badge variant={badgeVariant}>{req.displayStatus}</Badge>
+                        <div className="flex items-center text-xs font-bold text-gray-500">
+                          <Calendar className="w-3.5 h-3.5 mr-1.5" />
+                          {dateStr}
+                        </div>
                       </div>
 
-                      <div className="space-y-4">
-                        <p className="text-[17px] font-normal text-gray-900">On {dateStr}</p>
-                        <p className="text-[17px] font-normal text-gray-900">Requested: {itemsStr}</p>
+                      <CardContent className="p-6 flex-1 flex flex-col bg-white/40">
 
-                        {completedPledges.length > 0 && (
-                          <div className="space-y-3 mt-4">
-                            {completedPledges.map((pledge: any, pIdx: number) => {
-                              const pledgeItemsStr = pledge.items?.map((i: any) => `${i.quantity}${i.category?.unit || ''} ${i.category?.name || ''}`).join(' + ');
-                              return (
-                                <p key={pIdx} className="text-[16px] font-normal text-gray-800 leading-relaxed">
-                                  Till now, received {pledgeItemsStr} from {pledge.donor?.organization || pledge.donor?.name || "unknown"} via Delivery-man {pledge.driver?.name || "unknown"}
-                                </p>
-                              )
-                            })}
+                        <div className="space-y-4 mb-6 flex-1">
+                          {req.items.map((item: any, idx: number) => {
+                            const demanded = item.initialQuantity || item.deficit || 0;
+                            const received = completedPledges.reduce((s: number, p: any) => {
+                              const pItem = p.items?.find((pi: any) => pi.categoryId === item.categoryId);
+                              return s + (pItem ? pItem.quantity : 0);
+                            }, 0);
+                            return (
+                              <div key={idx} className="space-y-1.5">
+                                <div className="flex justify-between items-end">
+                                  <span className="text-[13px] font-bold text-brand-dark uppercase tracking-widest">{item.food || item.category?.name}</span>
+                                  <span className="text-xs font-medium text-gray-500">{received} / {demanded} {item.unit}</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all duration-500 ${req.displayStatus === 'FULFILLED' ? 'bg-semantic-success' : 'bg-brand-blue'}`}
+                                    style={{ width: `${demanded > 0 ? Math.min(100, (received / demanded) * 100) : 0}%` }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {(req.displayStatus === 'OPEN' || req.displayStatus === 'PARTIAL') && (
+                          <div className="mt-auto pt-4 border-t border-gray-100">
+                            <Button
+                              variant="secondary"
+                              className="w-full group"
+                              onClick={() => setActiveRequest(req)}
+                            >
+                              Manage Operations
+                              <ChevronRight className="w-4 h-4 ml-1 text-gray-400 group-hover:text-brand-blue transition-colors" />
+                            </Button>
                           </div>
                         )}
-                      </div>
 
-                      {/* ACTION BUTTON (Visible for OPEN and PARTIAL) */}
-                      {(req.displayStatus === 'OPEN' || req.displayStatus === 'PARTIAL') && (
-                        <div className="mt-8 flex justify-center">
-                          <button
-                            onClick={() => setActiveRequest(req)}
-                            className="px-8 py-2 bg-[#a5a5a5] border-[1.5px] border-gray-900 text-[#cc0000] font-normal text-[17px] hover:bg-[#8e8e8e] transition-colors shadow-sm"
-                          >
-                            Check status
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                        {(req.displayStatus === 'FULFILLED' || req.displayStatus === 'EXPIRED') && (
+                          <div className="mt-auto pt-4 border-t border-gray-100">
+                            <Button
+                              variant="secondary"
+                              className="w-full opacity-50 cursor-not-allowed"
+                              onClick={() => setActiveRequest(req)}
+                            >
+                              View Archive
+                            </Button>
+                          </div>
+                        )}
+
+                      </CardContent>
+                    </Card>
                   );
                 })}
               </div>
 
               {visibleCount < requests.length && (
-                <div className="flex justify-center mt-10">
-                  <button
-                    onClick={() => setVisibleCount(p => p + 4)}
-                    className="px-10 py-2 bg-[#b4c7dc] border-[1.5px] border-gray-900 text-[#cc0000] font-normal text-[18px] hover:bg-[#9eb4ca] transition-colors"
-                  >
-                    Load more
-                  </button>
+                <div className="flex justify-center mt-12 border-t border-gray-100 pt-8">
+                  <Button variant="outline" size="lg" onClick={() => setVisibleCount(p => p + 3)}>
+                    Load More History
+                  </Button>
                 </div>
               )}
             </div>
           )}
         </main>
 
-        {/* MODAL POPUP */}
+        {/* MODAL POPUP - Rebuilt for SaaS Standard */}
         {activeRequest && (
-          <div className="fixed inset-0 bg-white/95 flex items-center justify-center z-50 p-8 overflow-y-auto">
-            <div className="w-full max-w-2xl bg-white border-[3px] border-[#0a192f] p-10 flex flex-col items-center relative shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] mt-auto mb-auto">
-              <button onClick={() => { setActiveRequest(null); setActionPledgeId(null); }} className="absolute right-6 top-6 text-gray-900 font-bold text-lg hover:underline">
-                Close (X)
-              </button>
+          <div className="fixed inset-0 bg-brand-dark/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 sm:p-8 animate-in fade-in duration-300 overflow-y-auto">
+            <Card className="w-full max-w-3xl flex flex-col relative shadow-cinematic overflow-hidden my-auto">
 
-              <div className="w-full space-y-4 mb-10 px-8 mt-4">
-                {activeRequest.items.map((item: any, idx: number) => {
-                  const demanded = item.initialQuantity || item.deficit || 0;
-
-                  // FIX: Calculate received STRICTLY from COMPLETED pledges
-                  const completedPledges = activeRequest.pledges?.filter((p: any) => p.status === 'COMPLETED') || [];
-                  const received = completedPledges.reduce((sum: number, p: any) => {
-                    const pItem = p.items.find((pi: any) => pi.categoryId === item.categoryId);
-                    return sum + (pItem ? pItem.quantity : 0);
-                  }, 0);
-
-                  let fillPercent = demanded > 0 ? Math.min(100, (received / demanded) * 100) : 0;
-
-                  return (
-                    <div key={idx} className="flex justify-between items-center w-full">
-                      <span className="text-[20px] font-normal text-gray-900 capitalize w-1/3 text-right pr-6">{item.food || item.category?.name}</span>
-                      <span className="text-[20px] font-normal text-gray-900 w-1/3 text-center">{received}/{demanded}{item.unit}</span>
-                      <div className="w-1/3 flex justify-start pl-4">
-                        <div className="w-[80px] h-[22px] border-[2px] border-gray-900 bg-white relative overflow-hidden flex items-center">
-                          <div className="absolute left-0 top-0 h-full bg-[#f6b26b] transition-all duration-500 ease-out" style={{ width: `${fillPercent}%` }}></div>
-                          <span className="absolute w-full text-center text-[10px] font-bold text-gray-900 z-10">{Math.round(fillPercent)}%</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="flex items-center justify-center gap-6 mb-10">
-                <span className="text-[24px] text-gray-900 font-normal">Urgency</span>
-                <div className={`w-[70px] h-[70px] rounded-full border-[2.5px] flex items-center justify-center text-[36px] font-normal shadow-sm ${getUrgencyStyles(activeRequest.urgency)}`}>
-                  {activeRequest.urgency}
+              <div className="px-8 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <div>
+                  <h3 className="text-xl font-black text-brand-dark">Fulfillment Operations Center</h3>
+                  <p className="text-sm font-medium text-gray-500">Managing logistics for request {activeRequest.id.substring(0, 8)}...</p>
                 </div>
+                <button onClick={() => { setActiveRequest(null); setActionPledgeId(null); }} className="p-2 bg-white rounded-full text-gray-400 hover:text-semantic-danger hover:bg-red-50 transition-colors shadow-sm">
+                  <X size={20} />
+                </button>
               </div>
 
-              <div className="w-full border-[2.5px] border-gray-900 p-6 mb-10 min-h-[100px] flex items-center justify-center text-center">
-                <p className="text-[20px] font-normal text-gray-900 leading-relaxed">
-                  {activeRequest.description || "No specific details provided."}
-                </p>
-              </div>
+              <div className="p-8 space-y-8">
 
-              <div className="w-full flex items-center justify-center gap-4 mb-12">
-                <span className="text-[22px] font-normal text-gray-900">Status</span>
-                <div className="w-40 h-[30px] border-[2px] border-[#4a86e8] bg-white relative overflow-hidden flex items-center rounded-md">
-                  <div className="absolute left-0 top-0 h-full bg-[#f6b26b] transition-all duration-500 ease-out"
-                    style={{
-                      width: `${(() => {
-                        const totalDemanded = activeRequest.items.reduce((s: number, i: any) => s + (i.initialQuantity || i.deficit || 0), 0);
-                        const completedPledges = activeRequest.pledges?.filter((p: any) => p.status === 'COMPLETED') || [];
-                        const totalReceived = activeRequest.items.reduce((sum: number, item: any) => {
-                          return sum + completedPledges.reduce((s: number, p: any) => {
-                            const pItem = p.items.find((pi: any) => pi.categoryId === item.categoryId);
-                            return s + (pItem ? pItem.quantity : 0);
-                          }, 0);
-                        }, 0);
-                        return totalDemanded > 0 ? Math.min(100, Math.round((totalReceived / totalDemanded) * 100)) : 0;
-                      })()}%`
-                    }}>
-                  </div>
-                  <span className="absolute w-full text-center text-[14px] font-bold text-gray-900 z-10">
-                    {(() => {
-                      const totalDemanded = activeRequest.items.reduce((s: number, i: any) => s + (i.initialQuantity || i.deficit || 0), 0);
+                {/* Visual Progress Overview */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 rounded-2xl p-6 border border-gray-100">
+                  <div className="space-y-4">
+                    <span className="block text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-2">Completion Status</span>
+                    {activeRequest.items.map((item: any, idx: number) => {
+                      const demanded = item.initialQuantity || item.deficit || 0;
                       const completedPledges = activeRequest.pledges?.filter((p: any) => p.status === 'COMPLETED') || [];
-                      const totalReceived = activeRequest.items.reduce((sum: number, item: any) => {
-                        return sum + completedPledges.reduce((s: number, p: any) => {
-                          const pItem = p.items.find((pi: any) => pi.categoryId === item.categoryId);
-                          return s + (pItem ? pItem.quantity : 0);
-                        }, 0);
+                      const received = completedPledges.reduce((sum: number, p: any) => {
+                        const pItem = p.items.find((pi: any) => pi.categoryId === item.categoryId);
+                        return sum + (pItem ? pItem.quantity : 0);
                       }, 0);
-                      return totalDemanded > 0 ? Math.min(100, Math.round((totalReceived / totalDemanded) * 100)) : 0;
-                    })()}%
-                  </span>
-                </div>
-              </div>
 
-              <div className="w-full flex flex-col items-start px-8">
-                <h3 className="text-[22px] font-normal text-gray-900 mb-4">Donations</h3>
-
-                {activeRequest.pledges && activeRequest.pledges.length > 0 ? (
-                  <div className="w-full space-y-4">
-                    {activeRequest.pledges.map((pledge: any) => (
-                      <div key={pledge.id} className="w-full">
-                        {pledge.status === 'LOCKED' || pledge.status === 'IN_TRANSIT' ? (
-                          actionPledgeId === pledge.id ? (
-                            <div className="flex gap-4 animate-fade-in w-full">
-                              <button
-                                disabled={isUpdating}
-                                onClick={() => handlePledgeStatus(pledge.id, 'COMPLETED')}
-                                className="flex-1 py-3 bg-[#6aa84f] border-[2px] border-gray-900 text-white font-bold text-[18px] hover:bg-[#5b9044]"
-                              >
-                                Received
-                              </button>
-                              <button
-                                disabled={isUpdating}
-                                onClick={() => handlePledgeStatus(pledge.id, 'FAILED')}
-                                className="flex-1 py-3 bg-[#cc0000] border-[2px] border-gray-900 text-white font-bold text-[18px] hover:bg-[#a60000]"
-                              >
-                                Failed
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setActionPledgeId(pledge.id)}
-                              className="w-fit px-6 py-2.5 bg-[#00FFFF] border-[2px] border-gray-900 text-gray-900 font-normal text-[20px] hover:bg-[#00e6e6] transition-colors"
-                            >
-                              Receive from {pledge.donor?.organization || pledge.donor?.name || "Unknown"}
-                            </button>
-                          )
-                        ) : (
-                          <div className={`px-6 py-2.5 border-[2px] border-gray-900 w-fit font-bold text-[18px] ${pledge.status === 'COMPLETED' ? 'bg-[#e6f4ea] text-[#388e3c]' : 'bg-[#fce8e6] text-[#cc0000]'}`}>
-                            {pledge.donor?.organization || pledge.donor?.name || "Unknown"}: {pledge.status === 'COMPLETED' ? 'COMPLETED' : 'Failed'}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      return (
+                        <ProgressBar
+                          key={idx}
+                          current={received}
+                          total={demanded}
+                          label={item.food || item.category?.name}
+                          unit={item.unit}
+                        />
+                      );
+                    })}
                   </div>
-                ) : (
-                  <p className="text-gray-500 font-medium">No donations have been pledged to this request yet.</p>
-                )}
-              </div>
 
-            </div>
+                  <div className="flex flex-col justify-center items-center md:items-end md:pr-4 border-t md:border-t-0 md:border-l border-gray-200 pt-6 md:pt-0">
+                    <span className="block text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-3">Priority Level</span>
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-black shadow-sm ${getUrgencyStyles(activeRequest.urgency)}`}>
+                      {activeRequest.urgency}
+                    </div>
+                  </div>
+                </div>
+
+                {activeRequest.description && (
+                  <div>
+                    <span className="block text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-2">Operational Context</span>
+                    <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl text-[15px] text-gray-700 italic">
+                      "{activeRequest.description}"
+                    </div>
+                  </div>
+                )}
+
+                {/* Logistics Ledger */}
+                <div>
+                  <h3 className="text-lg font-black text-brand-dark tracking-tight mb-4 flex items-center gap-2">
+                    <Download className="w-5 h-5 text-brand-blue" /> Incoming Logistics
+                  </h3>
+
+                  {activeRequest.pledges && activeRequest.pledges.length > 0 ? (
+                    <div className="space-y-4">
+                      {activeRequest.pledges.map((pledge: any) => (
+                        <div key={pledge.id} className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+                          <div className="px-5 py-3 bg-gray-50 flex justify-between items-center border-b border-gray-100">
+                            <span className="text-[13px] font-bold text-brand-dark uppercase tracking-widest">
+                              From {pledge.donor?.organization || pledge.donor?.name || "Unknown Entity"}
+                            </span>
+                            <Badge variant={pledge.status === 'COMPLETED' ? 'success' : pledge.status === 'FAILED' ? 'danger' : 'warning'} size="sm">
+                              {pledge.status.replace('_', ' ')}
+                            </Badge>
+                          </div>
+
+                          <div className="p-5 flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div className="text-[14px] font-medium text-gray-600">
+                              {pledge.items?.map((i: any) => `${i.quantity}${i.category?.unit || ''} ${i.category?.name || ''}`).join(' + ')}
+                            </div>
+
+                            {/* Action Engine */}
+                            {pledge.status === 'LOCKED' || pledge.status === 'IN_TRANSIT' ? (
+                              actionPledgeId === pledge.id ? (
+                                <div className="flex w-full md:w-auto gap-2 animate-in slide-in-from-right-4">
+                                  <Button
+                                    variant="success"
+                                    size="sm"
+                                    disabled={isUpdating}
+                                    onClick={() => handlePledgeStatus(pledge.id, 'COMPLETED')}
+                                  >
+                                    <CheckCircle2 className="w-4 h-4 mr-1.5" /> Accept
+                                  </Button>
+                                  <Button
+                                    variant="danger"
+                                    size="sm"
+                                    disabled={isUpdating}
+                                    onClick={() => handlePledgeStatus(pledge.id, 'FAILED')}
+                                  >
+                                    <XCircle className="w-4 h-4 mr-1.5" /> Fail
+                                  </Button>
+                                </div>
+                              ) : (
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  className="w-full md:w-auto border-brand-blue/30 text-brand-blue hover:bg-brand-blue hover:text-white"
+                                  onClick={() => setActionPledgeId(pledge.id)}
+                                >
+                                  Process Delivery
+                                </Button>
+                              )
+                            ) : null}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-6 rounded-xl border border-dashed border-gray-200 text-center bg-gray-50/50">
+                      <p className="text-[14px] font-bold text-gray-400">No external commitments pledged to this request yet.</p>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            </Card>
           </div>
         )}
       </div>

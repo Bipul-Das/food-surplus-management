@@ -4,21 +4,28 @@
 import { useState, useEffect } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import PrivateNavbar from "@/components/layout/PrivateNavbar";
-import { Card } from "@/components/ui/Card";
-import { UserPlus, Edit2, Trash2, Copy, CheckCircle2, ShieldCheck, Loader2, X } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { UserPlus, Edit2, Trash2, Copy, CheckCircle2, ShieldCheck, Loader2, X, Search, Shield, Key, Phone } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function StaffManagementPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
-  
+  const [searchQuery, setSearchQuery] = useState("");
+
   // Provisioning & Editing State
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [generatedCredentials, setGeneratedCredentials] = useState<{email: string, password: string} | null>(null);
-  
+  const [generatedCredentials, setGeneratedCredentials] = useState<{ email: string, password: string } | null>(null);
+
+  // LEAD DEV FIX: Isolated state for the 5-digit user input
+  const [phoneSuffix, setPhoneSuffix] = useState("");
+
   const initialFormState = {
-    name: "", email: "", phone: "", role: "DONOR",
+    name: "", email: "", phone: "10", role: "DONOR",
     organization: "", address: "", city: "", password: ""
   };
   const [formData, setFormData] = useState(initialFormState);
@@ -42,24 +49,20 @@ export default function StaffManagementPage() {
     }
   };
 
-  /* // COMMENTED OUT FOR TESTING PURPOSES
-  const handleGeneratePassword = () => {
-    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
-    let pwd = "";
-    for (let i = 0; i < 12; i++) {
-      pwd += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setFormData(prev => ({ ...prev, password: pwd }));
-  };
-  */
-
   const handleEdit = (user: any) => {
     setEditingId(user.id);
+
+    // Handle incoming phone data: strip "10" if it exists to populate the suffix field
+    const incomingPhone = user.phone || "";
+    const extractedSuffix = incomingPhone.startsWith("10") ? incomingPhone.slice(2) : incomingPhone;
+
+    setPhoneSuffix(extractedSuffix);
+
     setFormData({
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
+      name: user.name || "",
+      email: user.email || "",
+      phone: incomingPhone || "10",
+      role: user.role || "DONOR",
       organization: user.organization || "",
       address: user.address || "",
       city: user.city || "",
@@ -69,8 +72,19 @@ export default function StaffManagementPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // LEAD DEV FIX: Strict Masking for Phone Updates
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value.replace(/\D/g, ''); // Digits only
+    const truncated = rawValue.slice(0, 5); // Max 5 digits
+
+    setPhoneSuffix(truncated);
+    setFormData(prev => ({ ...prev, phone: `10${truncated}` })); // Reconstruct payload
+  };
+
   const cancelEdit = () => {
     setEditingId(null);
+    setGeneratedCredentials(null);
+    setPhoneSuffix("");
     setFormData(initialFormState);
   };
 
@@ -98,29 +112,34 @@ export default function StaffManagementPage() {
 
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Strict Client-Side Validation
+    if (phoneSuffix.length !== 5) {
+      return toast.error("Phone number must be exactly 7 digits (10 + 5 digits).");
+    }
+
     setIsLoading(true);
 
     try {
-      const url = editingId 
-        ? `http://localhost:5000/api/users/${editingId}` 
+      const url = editingId
+        ? `http://localhost:5000/api/users/${editingId}`
         : "http://localhost:5000/api/users/create";
-      
+
       const method = editingId ? "PATCH" : "POST";
 
-      // If creating new user, password is required. If updating, it's optional.
       if (!editingId && !formData.password) {
         throw new Error("A temporary password must be provided for new accounts.");
       }
 
       const response = await fetch(url, {
         method,
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}` 
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(formData) // payload.phone is strictly "10XXXXX"
       });
-      
+
       const result = await response.json();
 
       if (!response.ok || !result.success) {
@@ -132,9 +151,9 @@ export default function StaffManagementPage() {
         toast.success(editingId ? "Account updated and new password secured." : "Account provisioned successfully.");
       } else {
         toast.success("Account configuration updated securely.");
+        cancelEdit();
       }
 
-      if (!formData.password) cancelEdit(); // Reset UI if we didn't generate credentials
       fetchUsers();
     } catch (error: any) {
       toast.error(error.message || "An error occurred during transaction.");
@@ -148,218 +167,292 @@ export default function StaffManagementPage() {
     toast.success("Copied to clipboard!");
   };
 
-  const getRoleBadge = (role: string) => {
-    switch (role) {
-      case "LEAD_DEV": return <span className="bg-brand-dark text-white px-2.5 py-1 rounded-full text-xs font-bold uppercase">Lead Dev</span>;
-      case "COORDINATOR": return <span className="bg-brand-blue text-white px-2.5 py-1 rounded-full text-xs font-bold uppercase">Coordinator</span>;
-      case "DONOR": return <span className="bg-blue-100 text-brand-blue px-2.5 py-1 rounded-full text-xs font-bold uppercase">Donor</span>;
-      case "RECEIVER": return <span className="bg-green-100 text-urgency-low px-2.5 py-1 rounded-full text-xs font-bold uppercase">Receiver</span>;
-      case "DELIVERY_MAN": return <span className="bg-yellow-100 text-urgency-medium px-2.5 py-1 rounded-full text-xs font-bold uppercase">Delivery</span>;
-      default: return null;
-    }
-  };
+  const filteredUsers = users.filter(user =>
+    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <ProtectedRoute allowedRoles={["COORDINATOR", "LEAD_DEV"]}>
-      <div className="min-h-screen bg-bg-page flex flex-col">
+      <div className="min-h-screen bg-surface-background flex flex-col font-sans">
         <PrivateNavbar />
-        
-        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-          
-          <div>
-            <h1 className="text-2xl font-bold text-brand-dark flex items-center gap-2">
-              <ShieldCheck className="text-brand-blue w-6 h-6" />
-              Identity & Access Management
-            </h1>
-            <p className="text-sm text-text-secondary mt-1">Convert approved applications into active operational accounts.</p>
+
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8 md:py-12 space-y-8">
+
+          {/* Header */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+            <div>
+              <h1 className="text-3xl font-black text-brand-dark tracking-tight flex items-center gap-3">
+                <ShieldCheck className="text-brand-blue w-8 h-8" />
+                Identity & Access Management
+              </h1>
+              <p className="text-[15px] font-medium text-gray-500 mt-1">Convert approved applications into active operational accounts.</p>
+            </div>
           </div>
 
-          <Card className={`border-t-4 ${editingId ? 'border-amber-400 shadow-lg' : 'border-brand-blue'}`}>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-bold text-brand-dark flex items-center gap-2 uppercase tracking-wide">
-                {editingId ? <Edit2 className="w-5 h-5 text-amber-500" /> : <UserPlus className="w-5 h-5 text-text-secondary" />}
-                {editingId ? "Update Entity Configuration" : "Provision New Entity"}
-              </h2>
-              {editingId && (
-                <button onClick={cancelEdit} className="text-sm font-bold text-gray-400 hover:text-urgency-high flex items-center gap-1 transition-colors">
-                  <X className="w-4 h-4" /> Cancel Edit
-                </button>
-              )}
-            </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-            {generatedCredentials ? (
-              <div className="bg-green-50 border border-green-200 rounded-xl p-8 text-center animate-fade-in">
-                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-                  <CheckCircle2 className="w-8 h-8 text-urgency-low" />
-                </div>
-                <h3 className="text-xl font-bold text-brand-dark mb-2">Credentials Generated</h3>
-                <p className="text-text-secondary text-sm mb-6 max-w-md mx-auto">
-                  Please copy the secure credentials below and transmit them to the organization.
-                </p>
-                
-                <div className="flex flex-col md:flex-row justify-center gap-4 max-w-2xl mx-auto">
-                  <div className="flex-1 bg-white border border-gray-200 rounded-lg p-4 flex justify-between items-center shadow-sm">
-                    <div className="text-left">
-                      <p className="text-xs font-bold text-gray-400 uppercase">Email</p>
-                      <p className="font-mono text-brand-dark">{generatedCredentials.email}</p>
-                    </div>
-                    <button onClick={() => copyToClipboard(generatedCredentials.email)} className="text-brand-blue hover:text-brand-dark transition-colors"><Copy className="w-5 h-5" /></button>
-                  </div>
-                  <div className="flex-1 bg-white border border-gray-200 rounded-lg p-4 flex justify-between items-center shadow-sm">
-                    <div className="text-left">
-                      <p className="text-xs font-bold text-gray-400 uppercase">Temporary Password</p>
-                      <p className="font-mono text-brand-dark">{generatedCredentials.password}</p>
-                    </div>
-                    <button onClick={() => copyToClipboard(generatedCredentials.password)} className="text-brand-blue hover:text-brand-dark transition-colors"><Copy className="w-5 h-5" /></button>
-                  </div>
+            {/* LEFT COLUMN: Form Area */}
+            <div className="lg:col-span-4 sticky top-24">
+              <Card className={`overflow-hidden transition-all duration-500 ${editingId ? 'border-t-4 border-t-amber-500 shadow-cinematic' : 'border-t-4 border-t-brand-blue'}`}>
+                <div className="px-6 py-5 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                  <h2 className="text-[15px] font-black text-brand-dark flex items-center gap-2 uppercase tracking-widest">
+                    {editingId ? <Edit2 className="w-4 h-4 text-amber-500" /> : <UserPlus className="w-4 h-4 text-brand-blue" />}
+                    {editingId ? "Update Entity" : "Provision Entity"}
+                  </h2>
+                  {editingId && !generatedCredentials && (
+                    <button onClick={cancelEdit} className="p-1 text-gray-400 hover:text-semantic-danger bg-white rounded-full transition-colors shadow-sm">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
 
-                <button onClick={cancelEdit} className="mt-8 px-6 py-2 bg-brand-dark text-white text-sm font-bold rounded-lg hover:bg-brand-blue transition-colors">
-                  Acknowledge & Close
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleSaveUser} className="space-y-6 animate-fade-in">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-5">
-                    <div>
-                      <label className="block text-xs font-bold text-text-main uppercase mb-1.5">Entity / Full Name</label>
-                      <input required type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full px-4 py-2.5 rounded-lg bg-bg-input border border-gray-200 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all outline-none" placeholder="e.g. Grand Hotel" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-text-main uppercase mb-1.5">Official Email</label>
-                      <input required type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="w-full px-4 py-2.5 rounded-lg bg-bg-input border border-gray-200 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all outline-none" placeholder="contact@domain.com" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-text-main uppercase mb-1.5">Phone Number</label>
-                      <input required type="text" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="w-full px-4 py-2.5 rounded-lg bg-bg-input border border-gray-200 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all outline-none" placeholder="+880..." />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-text-main uppercase mb-1.5">Role Assignment</label>
-                      <select required value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})} className="w-full px-4 py-2.5 rounded-lg bg-bg-input border border-gray-200 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all outline-none">
-                        <option value="DONOR">Food Donor</option>
-                        <option value="RECEIVER">Receiver / NGO</option>
-                        <option value="DELIVERY_MAN">Delivery Personnel</option>
-                        <option value="COORDINATOR">Network Coordinator</option>
-                      </select>
-                    </div>
-                  </div>
+                <CardContent className="p-6">
+                  {generatedCredentials ? (
+                    <div className="text-center animate-in fade-in zoom-in duration-300 py-4">
+                      <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-emerald-100">
+                        <CheckCircle2 className="w-8 h-8 text-semantic-success" />
+                      </div>
+                      <h3 className="text-xl font-black text-brand-dark mb-2">Credentials Generated</h3>
+                      <p className="text-gray-500 text-sm mb-6 leading-relaxed">
+                        Copy the secure credentials below and transmit them to the organization via secure channels.
+                      </p>
 
-                  <div className="space-y-5">
-                    <div>
-                      <label className="block text-xs font-bold text-text-main uppercase mb-1.5">Organization (Optional)</label>
-                      <input type="text" value={formData.organization} onChange={(e) => setFormData({...formData, organization: e.target.value})} className="w-full px-4 py-2.5 rounded-lg bg-bg-input border border-gray-200 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all outline-none" placeholder="Parent org if applicable" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-text-main uppercase mb-1.5">Street Address</label>
-                        <input required type="text" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} className="w-full px-4 py-2.5 rounded-lg bg-bg-input border border-gray-200 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all outline-none" placeholder="House 1, Road 2" />
+                      <div className="space-y-3 mb-8 text-left">
+                        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex justify-between items-center">
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Email</p>
+                            <p className="font-mono text-sm text-brand-dark mt-0.5 font-bold">{generatedCredentials.email}</p>
+                          </div>
+                          <button type="button" onClick={() => copyToClipboard(generatedCredentials.email)} className="p-2 text-brand-blue hover:bg-brand-blue/10 rounded-lg transition-colors"><Copy className="w-4 h-4" /></button>
+                        </div>
+                        <div className="bg-blue-50/50 border border-brand-blue/20 rounded-xl p-4 flex justify-between items-center">
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Temporary Password</p>
+                            <p className="font-mono text-sm text-brand-blue mt-0.5 font-bold">{generatedCredentials.password}</p>
+                          </div>
+                          <button type="button" onClick={() => copyToClipboard(generatedCredentials.password)} className="p-2 text-brand-blue hover:bg-brand-blue/10 rounded-lg transition-colors"><Copy className="w-4 h-4" /></button>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-xs font-bold text-text-main uppercase mb-1.5">City</label>
-                        <input required type="text" value={formData.city} onChange={(e) => setFormData({...formData, city: e.target.value})} className="w-full px-4 py-2.5 rounded-lg bg-bg-input border border-gray-200 focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all outline-none" placeholder="Dhaka" />
-                      </div>
+
+                      <Button type="button" onClick={cancelEdit} variant="primary" className="w-full">
+                        Acknowledge & Close
+                      </Button>
                     </div>
-                    
-                    <div className="pt-2">
-                      <label className="block text-xs font-bold text-text-main uppercase mb-1.5">
-                        {editingId ? "Update Password (Optional)" : "Temporary Password"}
-                      </label>
-                      <div className="flex gap-2">
-                        {/* CHANGED TO EDITABLE INPUT FOR TESTING */}
-                        <input 
-                          type="text" 
-                          value={formData.password} 
-                          onChange={(e) => setFormData({...formData, password: e.target.value})}
-                          className="flex-1 px-4 py-2.5 rounded-lg bg-white border border-gray-200 focus:border-brand-blue focus:outline-none" 
-                          placeholder="Enter password manually (e.g. 'a')" 
+                  ) : (
+                    <form onSubmit={handleSaveUser} className="space-y-4 animate-in fade-in duration-300">
+
+                      <Input
+                        label="Entity / Full Name"
+                        required
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="e.g. Grand Hotel"
+                      />
+
+                      <Input
+                        label="Official Email"
+                        type="email"
+                        required
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        placeholder="contact@domain.com"
+                      />
+
+                      {/* LEAD DEV FIX: Custom Standardized Phone Input */}
+                      <div className="space-y-1.5 mt-1">
+                        <label className="text-[13px] font-bold text-gray-500 uppercase tracking-widest ml-1">Official Phone</label>
+                        <div className="flex items-center w-full rounded-xl bg-white border border-gray-200 overflow-hidden transition-all focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/20">
+                          <div className="flex items-center justify-center pl-4 pr-3 py-2.5 bg-gray-50 border-r border-gray-200">
+                            <Phone className="w-3.5 h-3.5 text-gray-400 mr-2" />
+                            <span className="font-bold text-brand-dark">10</span>
+                            <span className="text-gray-300 mx-1">-</span>
+                          </div>
+                          <input
+                            type="tel"
+                            required
+                            placeholder="XXXXX"
+                            value={phoneSuffix}
+                            onChange={handlePhoneChange}
+                            className="flex-1 px-3 py-2.5 bg-transparent outline-none font-medium text-brand-dark tracking-wide"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Role Assignment</label>
+                        <select
+                          required
+                          value={formData.role}
+                          onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                          className="w-full h-11 px-4 bg-white border border-gray-200 rounded-xl focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-medium text-brand-dark"
+                        >
+                          <option value="DONOR">Food Donor</option>
+                          <option value="RECEIVER">Receiver / NGO</option>
+                          <option value="DELIVERY_MAN">Delivery Personnel</option>
+                          <option value="COORDINATOR">Network Coordinator</option>
+                        </select>
+                      </div>
+
+                      <Input
+                        label="Organization (Optional)"
+                        value={formData.organization}
+                        onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
+                        placeholder="Parent org if applicable"
+                      />
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <Input
+                          label="Street Address"
+                          required
+                          value={formData.address}
+                          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                          placeholder="House 1, Road 2"
+                        />
+                        <Input
+                          label="City"
+                          required
+                          value={formData.city}
+                          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                          placeholder="Dhaka"
                         />
                       </div>
-                      <p className="text-xs text-gray-400 mt-2">
-                        {editingId ? "Leave blank to keep existing password." : "Manually set a temporary password for testing."}
-                      </p>
-                    </div>
+
+                      <div className="pt-4 border-t border-gray-100">
+                        <Input
+                          label={editingId ? "Update Password (Optional)" : "Temporary Password"}
+                          required={!editingId}
+                          value={formData.password}
+                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                          placeholder="Enter initial key (e.g. 'a')"
+                          icon={<Key className="w-4 h-4 text-gray-400" />}
+                        />
+                        <p className="text-[11px] font-medium text-gray-400 mt-2 ml-1">
+                          {editingId ? "Leave blank to maintain current credentials." : "Manually set a temporary key for testing."}
+                        </p>
+                      </div>
+
+                      <div className="pt-6">
+                        <Button
+                          type="submit"
+                          variant={editingId ? "warning" : "primary"}
+                          className="w-full shadow-md"
+                          disabled={isLoading || (!editingId && !formData.password)}
+                          isLoading={isLoading}
+                        >
+                          {editingId ? "Update Account Configuration" : "Provision New Account"}
+                        </Button>
+                      </div>
+                    </form>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* RIGHT COLUMN: Data Table */}
+            <div className="lg:col-span-8">
+              <Card className="overflow-hidden">
+                <div className="px-6 py-5 border-b border-gray-100 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <h2 className="text-[14px] font-black text-brand-dark uppercase tracking-widest flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-gray-400" />
+                    Registered Network Participants
+                  </h2>
+                  <div className="w-full sm:w-64 relative">
+                    <Input
+                      type="text"
+                      placeholder="Search by name or email..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      icon={<Search className="w-4 h-4" />}
+                      className="bg-white"
+                    />
                   </div>
                 </div>
 
-                <div className="pt-6 border-t border-gray-100 flex justify-end">
-                  <button 
-                    type="submit" 
-                    disabled={isLoading || (!editingId && !formData.password)} 
-                    className={`px-8 py-3 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm ${editingId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-brand-dark hover:bg-brand-blue'}`}
-                  >
-                    {isLoading ? <><Loader2 className="w-4 h-4 animate-spin"/> Processing...</> : (editingId ? "Save Changes" : "Create Account")}
-                  </button>
-                </div>
-              </form>
-            )}
-          </Card>
-
-          <Card className="p-0 overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-brand-dark uppercase tracking-wide">Registered Network Participants</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">Entity Details</th>
-                    <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">Assigned Role</th>
-                    <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider">Contact Logic</th>
-                    <th className="px-6 py-4 text-xs font-bold text-text-secondary uppercase tracking-wider text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 bg-white">
-                  {isFetching ? (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-brand-blue">
-                        <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
-                        <p className="text-sm font-medium">Synchronizing with registry...</p>
-                      </td>
-                    </tr>
-                  ) : users.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-text-secondary font-medium">
-                        No registered users found in the system.
-                      </td>
-                    </tr>
-                  ) : (
-                    users.map((user) => (
-                      <tr key={user.id} className={`transition-colors ${editingId === user.id ? 'bg-amber-50/30' : 'hover:bg-gray-50'}`}>
-                        <td className="px-6 py-4">
-                          <div className="font-bold text-brand-dark text-sm">{user.name}</div>
-                          <div className="text-xs text-text-secondary mt-0.5">{user.email}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {getRoleBadge(user.role)}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-text-main">
-                          {user.phone}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <div className="flex justify-end gap-3">
-                            <button 
-                              onClick={() => handleEdit(user)}
-                              className="flex items-center gap-1 text-xs font-bold text-text-secondary hover:text-amber-500 transition-colors"
-                            >
-                              <Edit2 className="w-4 h-4" /> Edit
-                            </button>
-                            <button 
-                              onClick={() => handleDelete(user.id)}
-                              className="flex items-center gap-1 text-xs font-bold text-text-secondary hover:text-urgency-high transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" /> Delete
-                            </button>
-                          </div>
-                        </td>
+                <div className="overflow-x-auto min-h-[500px]">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-white border-b border-gray-100">
+                        <th className="px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-widest sticky top-0 bg-white">Entity Details</th>
+                        <th className="px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-widest sticky top-0 bg-white">Role</th>
+                        <th className="px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-widest sticky top-0 bg-white">Location</th>
+                        <th className="px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-widest text-right sticky top-0 bg-white">Actions</th>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50 bg-white">
+                      {isFetching ? (
+                        <tr>
+                          <td colSpan={4} className="px-6 py-20 text-center">
+                            <Loader2 className="w-8 h-8 animate-spin text-brand-blue mx-auto mb-4" />
+                            <p className="text-sm font-medium text-gray-500">Synchronizing with registry...</p>
+                          </td>
+                        </tr>
+                      ) : filteredUsers.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-6 py-20 text-center">
+                            <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <Search className="w-6 h-6 text-gray-400" />
+                            </div>
+                            <p className="text-[15px] font-bold text-gray-500">No participants match your query.</p>
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredUsers.map((user) => (
+                          <tr key={user.id} className={`transition-all duration-300 cinematic-hover ${editingId === user.id ? 'bg-amber-50/20 shadow-inner' : 'hover:bg-gray-50/50'}`}>
+                            <td className="px-6 py-4">
+                              <div className="font-black text-brand-dark text-[14px] capitalize">{user.name}</div>
+                              <div className="text-xs font-medium text-gray-500 mt-1">{user.email}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <Badge
+                                variant={
+                                  user.role === 'LEAD_DEV' ? 'danger' :
+                                    user.role === 'COORDINATOR' ? 'info' :
+                                      user.role === 'RECEIVER' ? 'warning' :
+                                        user.role === 'DELIVERY_MAN' ? 'neutral' : 'success'
+                                }
+                                size="sm"
+                                className="capitalize"
+                              >
+                                {user.role.replace('_', ' ')}
+                              </Badge>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-[13px] font-medium text-brand-dark capitalize leading-tight">
+                                {[user.address, user.city].filter(Boolean).join(', ') || '-'}
+                              </div>
+                              <div className="text-xs font-medium text-gray-400 mt-1">{user.phone}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => handleEdit(user)}
+                                  className="px-3"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button
+                                  variant="danger"
+                                  size="sm"
+                                  onClick={() => handleDelete(user.id)}
+                                  className="px-3"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
             </div>
-          </Card>
 
+          </div>
         </main>
       </div>
     </ProtectedRoute>

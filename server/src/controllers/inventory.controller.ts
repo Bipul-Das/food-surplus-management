@@ -6,19 +6,23 @@ import { AuthRequest } from './user.controller';
 export const getInventory = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userRole = req.user!.role;
-    
-    // FIX: Safely extract ID regardless of JWT payload structure
     const userId = req.user?.id || (req.user as any)?.userId;
 
-    // Security Guard
     if (!userId) {
       return res.status(401).json({ success: false, message: "Invalid token payload. Could not verify identity." });
     }
 
-    // Strict Access Control: Donors only see their own items. Coordinators/Devs see all.
-    let whereClause = {};
+    // LEAD DEV FIX: Set the current date, stripped of time, to establish the expiration baseline
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Strict Access Control + Global Expiration Filter
+    let whereClause: any = {
+        expiryDate: { gte: today } // CRITICAL: Only return items where expiration is >= today
+    };
+    
     if (userRole === 'DONOR') {
-      whereClause = { donorId: userId };
+      whereClause.donorId = userId;
     }
 
     const inventory = await prisma.surplusInventory.findMany({
@@ -40,10 +44,8 @@ export const createInventoryItem = async (req: AuthRequest, res: Response, next:
   try {
     const { categoryName, unit, description, currentQuantity, batchNumber, expiryDate } = req.body;
     
-    // FIX: Safely extract ID regardless of JWT payload structure
     const donorId = req.user?.id || (req.user as any)?.userId;
 
-    // Security Guard: Prevent Prisma from crashing if token is malformed
     if (!donorId) {
       return res.status(401).json({ success: false, message: "Unauthorized: User ID missing from token payload." });
     }
@@ -59,7 +61,7 @@ export const createInventoryItem = async (req: AuthRequest, res: Response, next:
     // 2. Create the Inventory Record
     const newItem = await prisma.surplusInventory.create({
       data: {
-        donorId: donorId, // Now guaranteed to be a valid string
+        donorId: donorId, 
         categoryId: category.id,
         description,
         currentQuantity: parseFloat(currentQuantity),
@@ -79,15 +81,12 @@ export const deleteInventoryItem = async (req: AuthRequest, res: Response, next:
   try {
     const id = req.params.id as string;
     
-    // FIX: Safely extract ID regardless of JWT payload structure
     const userId = req.user?.id || (req.user as any)?.userId;
 
-    // Security Guard
     if (!userId) {
       return res.status(401).json({ success: false, message: "Invalid token payload. Could not verify identity." });
     }
 
-    // Verify ownership before deletion to prevent unauthorized tampering
     const item = await prisma.surplusInventory.findUnique({ where: { id } });
     if (!item) return res.status(404).json({ success: false, message: "Item not found." });
     
@@ -110,12 +109,10 @@ export const updateInventoryItem = async (req: AuthRequest, res: Response, next:
     
     const userId = req.user?.id || (req.user as any)?.userId;
 
-    // Security Guard
     if (!userId) {
       return res.status(401).json({ success: false, message: "Invalid token payload." });
     }
 
-    // Verify ownership
     const item = await prisma.surplusInventory.findUnique({ where: { id } });
     if (!item) return res.status(404).json({ success: false, message: "Item not found." });
     
@@ -123,7 +120,6 @@ export const updateInventoryItem = async (req: AuthRequest, res: Response, next:
       return res.status(403).json({ success: false, message: "Unauthorized update attempt." });
     }
 
-    // Handle Category Logic (in case they changed the food type)
     let category = await prisma.foodCategory.findUnique({ where: { name: categoryName.toLowerCase() } });
     if (!category) {
       category = await prisma.foodCategory.create({
@@ -131,7 +127,6 @@ export const updateInventoryItem = async (req: AuthRequest, res: Response, next:
       });
     }
 
-    // Update the Record
     const updatedItem = await prisma.surplusInventory.update({
       where: { id },
       data: {
@@ -153,9 +148,17 @@ export const updateInventoryItem = async (req: AuthRequest, res: Response, next:
 // ==========================================
 export const getPublicInventories = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    // Fetch all active surplus items, including donor and category info
+    
+    // LEAD DEV FIX: Establish expiration baseline
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Fetch active surplus items, EXCLUDING expired batches
     const activeInventories = await prisma.surplusInventory.findMany({
-      where: { currentQuantity: { gt: 0 } },
+      where: { 
+          currentQuantity: { gt: 0 },
+          expiryDate: { gte: today } // CRITICAL: Filter out expired food
+      },
       include: {
         donor: true,
         category: true

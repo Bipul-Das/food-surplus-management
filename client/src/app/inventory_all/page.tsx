@@ -41,7 +41,7 @@ export default function CurrentInventoriesPage() {
     const visibleInventories = inventories.slice(0, visibleCount);
 
     return (
-        <ProtectedRoute allowedRoles={["RECEIVER", "LEAD_DEV", "DONOR", "DELIVERY_MAN"]}>
+        <ProtectedRoute allowedRoles={['COORDINATOR', "RECEIVER", "LEAD_DEV", "DONOR", "DELIVERY_MAN"]}>
             <div className="min-h-screen bg-surface-background flex flex-col font-sans">
                 <PrivateNavbar />
 

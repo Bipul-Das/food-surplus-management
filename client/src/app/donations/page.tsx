@@ -1,10 +1,13 @@
-// client/src/app/donation-history/page.tsx
+// client/src/app/donations/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import PrivateNavbar from "@/components/layout/PrivateNavbar";
-import { Loader2 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Loader2, Calendar, MapPin, Truck, Package, XCircle, CheckCircle2, Clock, History } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function DonationHistoryPage() {
@@ -34,75 +37,149 @@ export default function DonationHistoryPage() {
     }
   };
 
-  const getStatusDisplay = (status: string) => {
-    if (status === 'IN_TRANSIT') return { text: 'processing', style: 'bg-[#b4a7d6] text-[#cc0000]' };
-    if (status === 'COMPLETED') return { text: 'complete', style: 'bg-[#a5a5a5] text-[#cc0000]' };
-    if (status === 'FAILED') return { text: 'failed', style: 'bg-[#a5a5a5] text-[#cc0000]' };
-    return { text: status.toLowerCase(), style: 'bg-gray-300 text-gray-900' };
+  // DESIGN REQUIREMENT: 3 distinct colors for 3 statuses
+  const getStatusConfig = (status: string) => {
+    if (status === 'IN_TRANSIT' || status === 'LOCKED') {
+      return {
+        text: 'Processing',
+        badge: 'info' as const,
+        icon: <Clock className="w-3.5 h-3.5 mr-1" />,
+        cardStyle: 'border-brand-blue/30 ring-1 ring-brand-blue/5 bg-blue-50/20'
+      };
+    }
+    if (status === 'COMPLETED') {
+      return {
+        text: 'Complete',
+        badge: 'success' as const,
+        icon: <CheckCircle2 className="w-3.5 h-3.5 mr-1" />,
+        cardStyle: 'border-semantic-success/30 ring-1 ring-semantic-success/5 bg-emerald-50/20'
+      };
+    }
+    if (status === 'FAILED') {
+      return {
+        text: 'Failed',
+        badge: 'danger' as const,
+        icon: <XCircle className="w-3.5 h-3.5 mr-1" />,
+        cardStyle: 'border-semantic-danger/20 ring-1 ring-semantic-danger/5 bg-red-50/20 opacity-80 grayscale-[0.2]'
+      };
+    }
+    return {
+      text: status.toLowerCase(),
+      badge: 'neutral' as const,
+      icon: null,
+      cardStyle: 'border-gray-200 bg-white'
+    };
   };
 
   const visibleDonations = donations.slice(0, visibleCount);
 
   return (
     <ProtectedRoute allowedRoles={["DONOR", "LEAD_DEV"]}>
-      <div className="min-h-screen bg-white flex flex-col font-sans">
+      <div className="min-h-screen bg-surface-background flex flex-col font-sans">
         <PrivateNavbar />
 
-        <main className="flex-1 w-full max-w-5xl mx-auto px-4 py-12">
-          <h1 className="text-[22px] font-normal text-gray-900 mb-8 tracking-tight">My donations</h1>
+        <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-8 md:py-12">
+
+          <div className="mb-10">
+            <h1 className="text-3xl font-black text-brand-dark tracking-tight">Donation Ledger</h1>
+            <p className="text-[15px] font-medium text-gray-500 mt-1">Audit your historical and active contributions to the network.</p>
+          </div>
 
           {isLoading ? (
-            <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-gray-900" /></div>
-          ) : donations.length === 0 ? (
-            <div className="border-[2px] border-[#6aa84f] p-12 text-center font-medium text-gray-900 bg-white">
-              No donation history found.
+            <div className="flex flex-col items-center justify-center py-32 space-y-4">
+              <Loader2 className="w-12 h-12 animate-spin text-brand-blue" />
+              <p className="text-gray-500 font-medium animate-pulse">Syncing transaction ledger...</p>
             </div>
+          ) : donations.length === 0 ? (
+            <Card className="flex flex-col items-center justify-center py-20 border-dashed">
+              <div className="bg-gray-50 p-4 rounded-full mb-4">
+                <History className="w-8 h-8 text-gray-300" />
+              </div>
+              <p className="text-lg font-bold text-gray-400">No donation history found.</p>
+            </Card>
           ) : (
-            <div className="border-[2px] border-[#6aa84f] p-8 relative">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:pr-12">
+            <div className="space-y-12">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {visibleDonations.map((donation) => {
-                  // Format Date to DD.MM.YYYY
                   const dateStr = new Date(donation.createdAt).toLocaleDateString('en-GB').replace(/\//g, '.');
+                  const itemsStr = donation.items.map((i: any) => `${i.quantity}${i.unit} ${i.food}`).join(' + ');
 
-                  // Format Items Array: "5 kg rice + 5 kg chicken..."
-                  const itemsStr = donation.items.map((i: any) => `${i.quantity} ${i.unit} ${i.food}`).join(' + ');
+                  const { text: statusText, badge, icon, cardStyle } = getStatusConfig(donation.status);
 
-                  const { text: statusText, style: statusStyle } = getStatusDisplay(donation.status);
                   const actionWord =
                     donation.status === 'COMPLETED' ? 'Delivered to' :
-                      donation.status === 'FAILED' ? 'Failed to deliver to' :
-                        'Delivering to';
+                      donation.status === 'FAILED' ? 'Failed delivery to' :
+                        'Routing to';
 
                   return (
-                    <div key={donation.id} className="border-[1.5px] border-gray-900 p-6 flex flex-col relative bg-white min-h-[160px]">
-
-                      {/* Status Badge */}
-                      <div className={`absolute top-0 right-0 px-4 py-1.5 border-b-[1.5px] border-l-[1.5px] border-gray-900 text-[18px] font-normal tracking-wide ${statusStyle}`}>
-                        {statusText}
+                    <Card
+                      key={donation.id}
+                      className={`flex flex-col relative overflow-hidden transition-all duration-300 cinematic-hover ${cardStyle}`}
+                    >
+                      {/* Header */}
+                      <div className="px-5 py-4 border-b border-gray-100/50 bg-white/60 backdrop-blur-sm flex justify-between items-center">
+                        <div className="flex items-center text-[12px] font-bold text-gray-500 uppercase tracking-widest">
+                          <Calendar className="w-3.5 h-3.5 mr-1.5 text-gray-400" />
+                          {dateStr}
+                        </div>
+                        <Badge variant={badge} className="uppercase tracking-widest text-[10px]">
+                          <div className="flex items-center">{icon} {statusText}</div>
+                        </Badge>
                       </div>
 
-                      <p className="text-[19px] font-normal text-gray-900 mb-1 mt-1">On {dateStr}</p>
-                      <p className="text-[19px] font-normal text-gray-900 mb-1">{actionWord} {donation.receiverOrg}</p>
-                      <p className="text-[19px] font-normal text-gray-900 mb-1">
-                        {itemsStr} via
-                      </p>
-                      <p className="text-[19px] font-normal text-gray-900">
-                        Delivery-man {donation.driverName}
-                      </p>
-                    </div>
+                      {/* Body */}
+                      <CardContent className="p-6 flex-1 flex flex-col bg-white/40">
+                        <div className="space-y-4 flex-1">
+
+                          {/* Destination */}
+                          <div className="flex items-start gap-3">
+                            <div className="p-2 bg-white rounded-lg border border-gray-100 shadow-sm mt-0.5">
+                              <MapPin className="w-4 h-4 text-brand-dark" />
+                            </div>
+                            <div>
+                              <span className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">{actionWord}</span>
+                              <span className="text-[15px] font-bold text-brand-dark capitalize leading-tight">{donation.receiverOrg}</span>
+                            </div>
+                          </div>
+
+                          {/* Items Payload */}
+                          <div className="flex items-start gap-3">
+                            <div className="p-2 bg-white rounded-lg border border-gray-100 shadow-sm mt-0.5">
+                              <Package className="w-4 h-4 text-brand-blue" />
+                            </div>
+                            <div>
+                              <span className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Payload</span>
+                              <span className="text-[14px] font-medium text-gray-700 capitalize leading-relaxed">{itemsStr}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Logistics Operator */}
+                        <div className="mt-6 pt-4 border-t border-gray-100/50 flex items-center gap-3">
+                          <div className="p-1.5 bg-gray-100 rounded-md text-gray-400">
+                            <Truck className="w-3.5 h-3.5" />
+                          </div>
+                          <span className="text-[13px] font-medium text-gray-500">
+                            Handled by <span className="font-bold text-brand-dark capitalize">{donation.driverName}</span>
+                          </span>
+                        </div>
+
+                      </CardContent>
+                    </Card>
                   );
                 })}
               </div>
 
-              {/* Load More Logic (+4 per click) */}
               {visibleCount < donations.length && (
-                <div className="mt-14 flex justify-center">
-                  <button
+                <div className="flex justify-center mt-12 border-t border-gray-100 pt-8">
+                  <Button
+                    variant="outline"
+                    size="lg"
                     onClick={() => setVisibleCount(prev => prev + 4)}
-                    className="px-6 py-2 bg-[#b4a7d6] border-[1.5px] border-gray-900 text-[#cc0000] font-normal text-[20px] hover:bg-[#9d8cc2] transition-colors"
+                    className="px-12"
                   >
-                    Load more
-                  </button>
+                    Load More Records
+                  </Button>
                 </div>
               )}
             </div>
